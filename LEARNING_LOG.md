@@ -404,6 +404,104 @@ Optional exercise: explain why the pre-apply decision needed the reserved IP,
 the wired MAC, and the NVMe model/serial, and why the later Talos check used
 the authenticated `talosconfig` instead of `--insecure`.
 
+## S05: baseline and control-plane failure exercise
+
+### What happened
+
+Before the workload was created, all three Kubernetes nodes were `Ready` and
+schedulable on Kubernetes `v1.35.8` and Talos `v1.12.12`. The pre-workload
+Talos baseline used `get cpustats` and `get memorystats`: cumulative CPU
+user/system and memory used/total (reported KiB) were `rudtal-cp-1`
+`178/528.83`, `1,928,672/16,057,704`; `rudtal-worker-1` `79.53/70.97`,
+`1,053,124/16,050,560`; and `rudtal-worker-2` `27.55/25.53`,
+`1,055,960/16,050,560`. Each node reported four CPUs and approximately 16 GiB
+of memory capacity. The Metrics API was not installed, so `kubectl top nodes`
+was unavailable; the CPU figures are cumulative counters, not percentages.
+
+A disposable `default/s05-web` Deployment requested three
+`nginx:1.27-alpine` replicas. A `default/s05-web-lan` NodePort Service exposed
+port `30368/TCP` only through the LAN addresses. The scheduler initially placed
+one replica on each node, and HTTP probes to all three node addresses returned
+`200`. Kubernetes emitted a PodSecurity restricted-profile warning for the
+ad-hoc manifest, but it did not block creation, scheduling or serving.
+
+With the operator watching the console, the authenticated pinned Talos client
+requested a graceful reboot of only `192.168.1.121` at
+`2026-09-05T19:20:04Z`:
+
+```sh
+downloads/talosctl-v1.12.12-darwin-arm64 \
+  --talosconfig generated/rudtal-cp-1/talosconfig \
+  --nodes 192.168.1.121 reboot --mode default --wait --timeout=90s
+```
+
+The reboot stopped the control-plane services and its local workload pod, but
+did not erase the internal SSD or change configuration. The Talos API was
+unavailable during teardown and boot. At `2026-09-05T19:21:28Z`, both workers
+were still `Ready`, the control-plane node was `NotReady`, worker NodePorts
+returned HTTP `200`, and the control-plane NodePort refused the connection.
+The Kubernetes `/readyz` sample was already `ok` at that timestamp, so this
+exercise does not claim an exact Kubernetes API outage duration or a failed
+`kubectl` sample.
+
+After boot, Talos `health` passed etcd consistency, API readiness, kubelet,
+static control-plane pods, kube-proxy, CoreDNS, node readiness and
+schedulability. The Deployment controller created a replacement on
+`rudtal-worker-1`; the workload returned to `3/3` with three worker-backed
+endpoints. The Deployment, Service and old `s03-smoke` pod were then deleted.
+No Tailscale configuration was added or changed.
+
+### Administrative lesson
+
+The **control plane** is the API server, scheduler, controller manager and
+etcd. It stores Kubernetes desired state and decides which actions should
+happen. The **data plane** is the kubelets, container runtimes, CNI paths and
+workload pods that run those decisions and carry application traffic. They are
+coupled through the API but do not fail identically: workers continued serving
+already-running containers while the single control-plane node rebooted.
+
+Kubernetes reconciliation is the continuous controller loop that compares
+desired state with observed state. During the reboot, the replica on the
+control-plane node ended during graceful shutdown and the replacement could not
+be created until the API, scheduler and controller manager returned. Once they
+returned, the replacement was scheduled on a worker and the EndpointSlice
+recovered. This is why a Deployment is more resilient than a bare pod, but
+cannot reconcile while its control plane is absent.
+
+This topology has one etcd member, so losing the control-plane node removes
+etcd, the Kubernetes API, scheduling and controllers until that node returns.
+Already-running worker pods can continue, and worker NodePorts can continue
+serving, but there is no high availability. Three control-plane nodes would
+give etcd a three-member quorum that survives one failure and would leave API,
+scheduler and controller replicas available on the remaining nodes. The cost
+is additional CPU, memory, storage and operational complexity; the lab's
+schedulable single control plane intentionally demonstrates that trade-off.
+
+### Reusable commands
+
+`talosctl get cpustats` and `get memorystats` provide repeatable host counters.
+Take two CPU samples and divide counter deltas by elapsed time when a rate is
+needed. `kubectl get nodes -o wide`, `kubectl get pods -A -o wide`,
+`kubectl get --raw='/readyz?verbose'`, `kubectl rollout status`, and LAN
+`curl` probes cover node health, pod placement, API readiness, reconciliation
+and service behavior. Use the pinned authenticated `talosctl reboot` only with
+the operator watching the console; its node selector must name the intended
+node exactly. `talosctl health --nodes 192.168.1.121` discovers and checks this
+cluster's configured workers and control plane.
+
+### Recovery notes
+
+Reboot recovery is repeatable and does not require etcd bootstrap. Wait for the
+Talos services, etcd, static control-plane pods, Kubernetes `/readyz`, node
+`Ready` state and workload rollout before declaring recovery. If the node does
+not return, use JetKVM for console and boot diagnosis; do not rerun bootstrap.
+The disposable Deployment and Service can be recreated for another rehearsal
+and deleted afterward. S05 made no installer-media or JetKVM-media changes.
+
+Optional exercise: compare `kubectl get --raw='/readyz'` with the control-plane
+node's `Ready` condition during a future planned maintenance window, and explain
+why API readiness can precede node readiness.
+
 ## Entry template
 
 ```markdown

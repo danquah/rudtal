@@ -9,8 +9,8 @@ here.
 
 The N100 control-plane node runs the reviewed S02 configuration from its
 internal SSD and hosts the Kubernetes cluster. Etcd was bootstrapped exactly
-once in S03. Kubernetes reports `rudtal-cp-1`, `rudtal-worker-1`, and
-`rudtal-worker-2` Ready.
+once in S03. The S05 baseline and single-control-plane reboot exercise completed;
+all three nodes and system pods are healthy again.
 
 The installation half of S04A is complete for `rudtal-worker-1`. The N150 was
 installed from the reviewed worker configuration onto its approved internal
@@ -21,11 +21,12 @@ S04B installation and verification are complete for `rudtal-worker-2` at
 `192.168.1.123`. The router reservation for MAC `e0:51:d8:1a:83:85` was
 verified before apply; the approved internal NVMe was wiped and Talos installed.
 The operator removed the physical installer USB after reboot and left JetKVM
-virtual media unmounted. No other node or Tailscale configuration was touched.
+virtual media unmounted. S05 changed no configuration, storage or boot media;
+Tailscale remains untouched.
 
 - Date recorded: 2026-09-05
-- Current session: `S04B`, installation and verification complete
-- Active physical node: `rudtal-worker-2`
+- Current session: `S05`, baseline and control-plane failure exercise complete
+- Active physical node: `rudtal-cp-1` (rebooted and restored)
 - Control-plane and Kubernetes address: `192.168.1.121`
 - Worker address: `192.168.1.122`
 - Worker reserved address: `192.168.1.122` for MAC `e0:51:d8:1a:80:37`
@@ -40,8 +41,16 @@ virtual media unmounted. No other node or Tailscale configuration was touched.
 - Etcd bootstrapped: yes, exactly once in S03
 - Kubernetes cluster running: yes; Kubernetes `v1.35.8`, Flannel CNI
 - Control-plane scheduling: enabled; no taints or unschedulable flag observed
-- S03 workload: `default/s03-smoke`, `busybox:1.36.1`, `Running` on
-  `rudtal-cp-1`, pod IP `10.244.0.4`
+- S05 baseline before workload: Talos `get cpustats` cumulative user/system and
+  `get memorystats` used/total (reported KiB) were `rudtal-cp-1` `178/528.83`,
+  `1,928,672/16,057,704`; `rudtal-worker-1` `79.53/70.97`,
+  `1,053,124/16,050,560`; and `rudtal-worker-2` `27.55/25.53`,
+  `1,055,960/16,050,560`. Each node reported 4 CPUs and about 16 GiB capacity.
+- Kubernetes Metrics API was unavailable, so no instantaneous CPU percentage or
+  `kubectl top` result is claimed; the recorded CPU values are cumulative
+  counters.
+- S03 workload: deleted during S05 cleanup; no default application workload
+  remains
 - S03 kubeconfig: `state/kubeconfig` (ignored, mode `0600`; contents never committed)
 - Kubernetes worker verification: `rudtal-worker-1` `Ready`, internal IP
   `192.168.1.122`, Kubernetes `v1.35.8`, Talos `v1.12.12`
@@ -117,11 +126,38 @@ virtual media unmounted. No other node or Tailscale configuration was touched.
 - Kubernetes verification passed: `rudtal-worker-2` registered at
   `192.168.1.123` and became `Ready` on v1.35.8.
 
+## S05 record
+
+- Baseline node health: all three nodes were `Ready`, schedulable, and on
+  Kubernetes `v1.35.8` / Talos `v1.12.12`; authenticated Talos services were
+  healthy, including `etcd` only on `rudtal-cp-1`.
+- Disposable workload: `default/s05-web`, three `nginx:1.27-alpine` replicas,
+  exposed as `default/s05-web-lan` NodePort `30368/TCP`. Before the failure,
+  one replica ran on each node and all three LAN node addresses returned HTTP
+  `200`.
+- At `2026-09-05T19:20:04Z`, with the operator watching the console, the
+  authenticated pinned Talos client requested a graceful reboot of only
+  `192.168.1.121` using `--mode default --wait --timeout=90s`. The reboot
+  stopped the control-plane Talos services and the local workload pod without
+  erasing the internal SSD or changing configuration.
+- At `2026-09-05T19:21:28Z`, `rudtal-cp-1` was `NotReady` while both workers
+  remained `Ready`; the worker NodePorts returned HTTP `200`, while the
+  control-plane NodePort refused the connection. Kubernetes `/readyz` was
+  already `ok` at that sample, so an exact Kubernetes API outage duration was
+  not measured; Talos reboot progress did show its API unavailable during
+  teardown/boot.
+- After recovery, Talos `health` passed etcd consistency, API readiness,
+  kubelet, static control-plane pods, kube-proxy, CoreDNS, node readiness and
+  schedulability. The Deployment controller created a replacement on
+  `rudtal-worker-1`; the workload reached `3/3` and its EndpointSlice again had
+  three worker-backed endpoints.
+- The disposable Deployment, Service and the old `s03-smoke` pod were deleted
+  after observation. No Tailscale configuration was added or changed.
+
 ## Next action
 
-Begin S05 baseline and failure exercise. Keep the two N150 workers and the
-schedulable N100 control plane unchanged; do not add Tailscale access before
-the S06 design step.
+Begin S06 design for Tailscale identity, access controls and recovery boundaries.
+Do not install the Tailscale operator or expose remote access before that design.
 
 ## Known decisions
 
@@ -152,7 +188,7 @@ the S06 design step.
 | `S03` | Complete | Etcd bootstrapped once; kubeconfig retrieved to ignored state; single-node Kubernetes healthy; disposable smoke pod running |
 | `S04A` | Complete | Installed `rudtal-worker-1` on its approved 512 GB NVMe; removed boot media; verified authenticated Talos and Kubernetes `Ready` |
 | `S04B` | Complete | Installed `rudtal-worker-2` on its approved 512 GB NVMe; removed boot media; verified authenticated Talos and Kubernetes `Ready` |
-| `S05` | Not started | Baseline workload and failure exercise |
+| `S05` | Complete | Recorded Talos/Kubernetes baseline; deployed and cleaned up a LAN NodePort workload; rebooted and recovered only the control plane; documented worker continuity and reconciliation |
 | `S06` | Not started | Tailscale operator and access controls |
 | `S07` | Not started | Full teardown and reproducible rebuild |
 | `S08` | Deferred | Virtualization and Cluster API experiment |
