@@ -52,9 +52,11 @@ the control plane is schedulable, and all current `kube-system` pods are
 
 ## Next action
 
-Start `S04A`: inventory `rudtal-worker-1` at `192.168.1.122`, confirm its wired
-MAC, RAM, firmware and exact Talos install disk, then stop before applying any
-worker configuration. Do not add `rudtal-worker-2` or Tailscale in S04A.
+Start the discovery half of `S04A`: connect JetKVM to the first N150, boot the
+Talos installer, note its temporary maintenance address, and inventory its wired
+MAC, RAM, firmware and exact install disk. Reserve `192.168.1.122` for the observed
+MAC, reboot and verify the reservation, then stop before rendering or applying any
+worker configuration. Do not touch `rudtal-worker-2` or Tailscale.
 
 ## Known decisions
 
