@@ -8,7 +8,7 @@ Fill this in before generating physical machine configuration. Values marked
 | Node | Model | CPU | RAM | SSD model / size | Wired MAC | Firmware | Talos install disk | Wipe approved |
 |---|---|---|---:|---|---|---|---|---|
 | `rudtal-cp-1` | G3 | N100 | 16 GB | AirDisk 256 GB | `e0:51:d8:12:d2:66` | TBD | `/dev/nvme0n1` | Yes |
-| `rudtal-worker-1` | G3 Plus | N150 | 16 GB | TWSC TSC3AN512E6-F2T60S / 512 GB | `e0:51:d8:1a:80:37` | SMBIOS firmware version unavailable (`Default string`) | `/dev/nvme0n1` | TBD |
+| `rudtal-worker-1` | G3 Plus | N150 | 16 GB | TWSC TSC3AN512E6-F2T60S / 512 GB | `e0:51:d8:1a:80:37` | SMBIOS firmware version unavailable (`Default string`) | `/dev/nvme0n1` | Yes |
 | `rudtal-worker-2` | G3 Plus | N150 | TBD | TBD | TBD | TBD | Confirm from maintenance mode | TBD |
 
 Do not copy `/dev/nvme0n1` or `/dev/sda` from the stranded configuration without
@@ -16,7 +16,7 @@ checking the disks shown by each machine in Talos maintenance mode.
 For `rudtal-worker-1`, maintenance mode showed the internal NVMe disk as
 `/dev/nvme0n1`, the physical installer USB as `/dev/sda`, and JetKVM virtual
 media as `/dev/sr0`. Only the NVMe disk is the prospective install target.
-No worker disk wipe was approved in S04A; approval remains `TBD`.
+The operator explicitly approved erasing `/dev/nvme0n1` during S04A before rendering and applying the worker configuration. The node was installed to that disk, and installer media was removed after reboot.
 
 ## Network
 
