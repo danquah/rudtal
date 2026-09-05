@@ -1,0 +1,23 @@
+# Local credentials and generated Talos machine configuration.
+# Keep encrypted SOPS sources (for example, *.sops.yaml) in Git.
+generated/
+state/
+downloads/
+.env
+.env.*
+!.env.example
+talosconfig
+kubeconfig
+secrets.yaml
+*.key
+*.crt
+age-key.txt
+
+# Stranded generated artifacts. These contain cluster credentials.
+rudtal01/controlplane.yaml
+rudtal01/worker.yaml
+rudtal01/worker_04_qnap.yaml
+rudtal01/secrets.yaml
+rudtal01/talosconfig
+
+.DS_Store

@@ -1,0 +1,266 @@
+# Rudtal: rebuildable Talos learning lab
+
+## Goal
+
+Build a small Talos Kubernetes cluster that is safe to experiment with, can be
+destroyed without regret, and can be rebuilt from the declarative inputs in this
+repository. Use Tailscale for remote Kubernetes and service access. Learn Talos,
+Kubernetes, networking, PKI, and GitOps in layers so failures remain understandable.
+
+This plan assumes three machines: two NucBox G3 Plus N150 systems and one NucBox
+G3 N100 system. The old address plan suggests `192.168.1.121` through
+`192.168.1.123`; every address still needs to be checked against the router before
+it is reused.
+
+## Recommended architecture
+
+```mermaid
+flowchart TB
+    Laptop[Admin laptop\ntalosctl + kubectl + SOPS]
+    Tailnet[Tailscale tailnet]
+    KVM[JetKVM\nconsole + virtual media]
+    Router[Home router / switch]
+    API[API endpoint\n192.168.1.121:6443]
+    N1[N100\nrudtal-cp-1\n192.168.1.121]
+    N2[N150\nrudtal-worker-1\n192.168.1.122]
+    N3[N150\nrudtal-worker-2\n192.168.1.123]
+    TS[Tailscale Kubernetes Operator]
+
+    Laptop --> Router
+    Laptop --> Tailnet
+    Tailnet --> KVM
+    KVM -. HDMI and USB to active node .-> N1
+    KVM -. moved or switched .-> N2
+    KVM -. moved or switched .-> N3
+    Tailnet --> TS
+    TS --> API
+    Router --> API
+    API --> N1
+    N1 --> N2
+    N1 --> N3
+```
+
+Run one physical machine as a schedulable Talos control-plane node and the other
+two as workers. This runs only one copy of etcd and the Kubernetes control-plane
+components while retaining all three machines for workloads. The N100 is the
+provisional control-plane choice so the slightly faster N150 systems are workers;
+disk health and network reliability take priority when the hardware is inventoried.
+
+The trade-off is deliberate: if the control-plane node is unavailable, existing
+workloads may continue running but the Kubernetes API, scheduling and controllers
+are unavailable until it returns. That is acceptable for this disposable lab and
+JetKVM makes recovery practical. Never use two control-plane nodes: etcd would
+require both for quorum, so it adds overhead without tolerating a failure. A later
+three-control-plane exercise can measure the real overhead and demonstrate quorum
+and API failover before deciding whether availability is worth it.
+
+The Kubernetes API initially uses the single control-plane address, optionally
+with `api.rudtal.home.arpa` pointing to it. A layer-2 API VIP becomes useful only
+if the lab is deliberately converted to three control-plane nodes. All addresses
+remain provisional until DHCP reservations and the router's pool are checked.
+
+Start with Talos' default Flannel CNI. Introduce Cilium only after the first full
+rebuild, when there is a working baseline to compare against. Use simple local
+storage for disposable workloads initially; distributed storage is a separate
+project and is likely to consume more of these four-core systems than it teaches
+in the first iteration.
+
+Connect JetKVM directly to the tailnet and use it as the out-of-band console and
+virtual installation drive. This remains available when Talos or Kubernetes is
+unhealthy. One JetKVM controls one attached target at a time unless a compatible
+KVM switch is added, so the working assumption is that it will be moved between
+nodes during the first build.
+
+Tailscale should also run as the Kubernetes Operator. It can expose selected
+services and proxy the Kubernetes API to the tailnet. Neither the operator nor
+ordinary Tailscale access to JetKVM provides a route to the Talos API when
+Kubernetes itself is down. For remote `talosctl` access, optionally add a Tailscale
+subnet router on an independent always-on device. Do not expose ports 50000 or
+6443 on the public internet.
+
+## Version baseline
+
+Pin versions in the repository rather than using `latest`:
+
+- Talos Linux: `v1.12.12`
+- Kubernetes: `v1.35.8`
+- Architecture for the mini PCs: `amd64`
+
+These are the current stable Talos release and its bundled Kubernetes version as
+of 2026-09-05. The global `talosctl` is `v1.11.1`; an exact, checksum-verified
+v1.12.12 client is available at
+`downloads/talosctl-v1.12.12-darwin-arm64`. Use that binary for this cluster.
+Update versions deliberately in a separate change after reading the relevant
+upgrade notes.
+
+## Repository contract
+
+The durable source should eventually have this shape:
+
+```text
+.
+├── README.md
+├── PROJECT_PLAN.md
+├── SECURITY.md
+├── versions.env
+├── talos/
+│   ├── patches/
+│   │   ├── common.yaml
+│   │   ├── controlplane.yaml
+│   │   ├── worker.yaml
+│   │   └── nodes/
+│   │       ├── rudtal-cp-1.yaml
+│   │       ├── rudtal-worker-1.yaml
+│   │       └── rudtal-worker-2.yaml
+│   └── secrets.sops.yaml
+├── kubernetes/
+│   ├── tailscale/
+│   └── apps/
+├── scripts/
+│   ├── render.sh
+│   ├── validate.sh
+│   └── reset.sh
+└── generated/                 # ignored; machine configs and client configs
+```
+
+Commit intent: version pins, machine patches, non-secret network assignments,
+Tailscale policy snippets, Kubernetes manifests, scripts, and documentation.
+Never commit rendered Talos machine configs, `talosconfig`, `kubeconfig`, plaintext
+Talos secrets, age private keys, Tailscale OAuth secrets, or application secrets.
+
+The preferred lab compromise is a private Git repository with a SOPS-encrypted
+Talos secrets bundle and SOPS-encrypted Kubernetes secrets. Keep the age private
+identity outside the repository and back it up in a password manager. This makes
+the same cluster identity reproducible. Generating a fresh secret bundle instead
+creates a new cluster identity, which is appropriate for a complete security reset.
+
+## Learning path
+
+### 0. Inventory and safety boundary
+
+Record each machine's RAM, SSD model and size, wired NIC MAC address, firmware
+version, and the disk name Talos sees. Confirm that all three internal drives may
+be erased. Reserve node addresses outside the DHCP pool. Confirm wired
+Ethernet connectivity, DNS and NTP access, and that the router has no inbound port
+forwarding to the nodes. Record JetKVM's address, firmware and recovery method;
+enable its local password and place it under a dedicated tailnet tag.
+
+Exit criterion: an inventory table and approved address plan exist in Git, with no
+secret material in the repository index.
+
+### 1. Disposable virtual rehearsal
+
+Upgrade `talosctl`, install QEMU on the ARM Mac if needed, and create a small local
+QEMU Talos cluster. Practice the lifecycle manually: create, inspect services and
+resources, bootstrap, obtain a kubeconfig, deploy a test workload, and destroy the
+cluster. Keep this exercise scriptable but separate from the physical cluster.
+
+Exit criterion: the virtual cluster has been created and destroyed twice, and the
+second run follows only the repository notes.
+
+### 2. Build the reproducible configuration pipeline
+
+Install SOPS and age. Generate one new Talos secrets bundle and encrypt it
+immediately. Write small patches for the shared configuration, each role and each
+node's hostname, static address, interface selector and install disk. Render full
+machine configurations only into `generated/` using the pinned Talos and
+Kubernetes versions.
+
+Validate patches and rendered configuration before touching the machines. Read
+the rendered diff when versions or patches change; generated files are discarded
+after use.
+
+Exit criterion: one control-plane config, two worker configs and a temporary
+`talosconfig` can be reproduced from a clean checkout plus the external age
+identity.
+
+### 3. Install the physical cluster
+
+Create an Image Factory `metal-amd64` installer for the pinned Talos version and
+verify its checksum. Upload it to JetKVM, mount it in disk or CD/DVD mode, and boot
+each mini PC from the read-only virtual drive into maintenance mode. Confirm the
+node's disk and network identity before applying only that node's rendered
+configuration. Unmount the installer after the node boots from its internal disk.
+Bootstrap etcd exactly once, then retrieve a fresh kubeconfig and verify all nodes
+and system pods.
+
+Do the first installation interactively, one node at a time. Record observations
+and fixes as patches or runbook changes rather than editing rendered YAML.
+
+Exit criterion: all three nodes are Ready, a disposable workload is reachable on
+the LAN, and the observed effect of stopping the control-plane node is documented.
+
+### 4. Add Tailscale with least privilege
+
+Create dedicated tailnet tags for the operator and lab services. Create a separate
+OAuth client for this cluster with only the scopes required by the operator, store
+its secret encrypted, and install the operator with Helm. First expose one test
+service; then enable the Kubernetes API proxy and bind the specific tailnet user or
+group through Kubernetes RBAC.
+
+Start with lab `cluster-admin` access only long enough to understand the identity
+flow, then replace it with a narrower admin role. Test access from a device that is
+outside the home LAN. Plan an independent subnet router only if remote Talos-level
+recovery is desired.
+
+Exit criterion: no router port forward exists, a named tailnet identity can reach
+the test service and Kubernetes API, and an unauthorized identity cannot.
+
+### 5. Add cluster services gradually
+
+Add one component at a time with a validation checkpoint: a load-balancer address
+pool, ingress or Gateway API, a simple local storage provisioner, metrics, then an
+optional GitOps controller. Keep test workloads stateless until backup and restore
+are a deliberate learning objective.
+
+Exit criterion: each component has a pinned version, a Git-managed manifest or
+release definition, and a documented removal path.
+
+### 6. Prove rebuildability
+
+Export no state from the running cluster. Destroy it, re-enter maintenance mode,
+render configuration from the repository, reinstall all three nodes, and restore
+the platform components from Git. Time the process and amend the runbook wherever
+memory or guesswork was required.
+
+Exit criterion: a clean rebuild succeeds using Git plus the external age identity,
+and rotating to a brand-new cluster identity is also documented.
+
+### 7. Virtualization and Cluster API experiment
+
+Treat this as a branch after the direct Talos rebuild works. First learn Cluster
+API using a disposable management cluster and a virtual infrastructure provider.
+Cluster API always needs an existing management cluster plus an infrastructure
+provider; the Talos bootstrap and control-plane providers do not provision hardware
+on their own.
+
+For the physical lab, the realistic virtualization route is Proxmox VE on the
+three hosts, Talos inside VMs, and CAPMOX as the infrastructure provider. This adds
+useful VM lifecycle automation and makes clusters cheap to recreate, but it also
+adds Proxmox networking, templates, credentials, a management cluster, and another
+failure domain. Current CAPMOX/CAPI v1beta2 support is newer than the stable Talos
+provider path, so pinning a compatible version set needs its own experiment.
+
+Direct bare-metal Cluster API is not the first choice for these mini PCs. Sidero
+Metal is now community-maintained, and consumer systems lack the BMC/IPMI lifecycle
+control expected by many bare-metal providers. Omni is worth evaluating later if
+its managed Talos lifecycle is itself part of the lesson.
+
+## Decisions to confirm before implementation
+
+1. Confirm the inventory is two N150 machines plus one N100 machine, and provide
+   the RAM and storage fitted to each.
+2. Confirm all three internal disks may be wiped.
+3. Choose the repository visibility. Private Git plus SOPS is recommended.
+4. Confirm whether the old `192.168.1.121-123` addresses are reserved and whether
+   `192.168.1.121` can be the initial Kubernetes API endpoint.
+5. Identify an independent always-on device for a future Tailscale subnet router,
+   if remote `talosctl` access matters in addition to JetKVM console recovery. The
+   old files mention a QNAP device; note whether it is still available.
+
+## Implementation sessions
+
+The original broad implementation session has been divided into bounded handoffs
+in `SESSION_PLAN.md`. `STATUS.md` identifies the exact current checkpoint. This
+keeps physical changes, secret creation, bootstrap, worker installation and
+Tailscale work independently reviewable across Codex and Claude Code sessions.
