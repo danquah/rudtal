@@ -502,6 +502,87 @@ Optional exercise: compare `kubectl get --raw='/readyz'` with the control-plane
 node's `Ready` condition during a future planned maintenance window, and explain
 why API readiness can precede node readiness.
 
+## S06: Flux declarative Kubernetes add-on management
+
+### What happened
+
+S06 kept the existing Talos and Flannel cluster intact and added a GitOps layer
+for Kubernetes add-ons. The repository now separates the Flux sync root
+(`clusters/rudtal/`), platform declarations (`infrastructure/`) and cluster
+applications (`apps/rudtal/`). The cluster root orders
+`infra-controllers`, `infra-configs` and `apps` with Flux `dependsOn`, `wait`,
+`prune` and explicit retry/timeout settings.
+
+The approved Flux CLI `v2.9.5` Darwin arm64 archive was downloaded, its official
+SHA-256 matched, and the client was installed locally. The operator completed
+the GitHub bootstrap for `git@github.com:danquah/rudtal.git` on `main` using a
+short-lived PAT for GitHub API setup and the default read-only deploy-key path
+for Flux. The PAT was not placed in the cluster. Flux created its controllers,
+CRDs, Git source, root Kustomization and cluster-only `flux-system` Git
+credential Secret. Secret contents were never displayed.
+
+Flux reported distribution `flux-v2.9.5` and healthy controller images:
+source-controller `v1.9.5`, kustomize-controller `v1.9.5`,
+helm-controller `v1.6.4` and notification-controller `v1.9.4`. The Git source
+and all four Kustomizations were Ready at cleanup revision
+`main@sha1:9f8ec968`.
+
+The disposable Git-managed resource was a ConfigMap with the value `baseline`.
+Flux reconciled it from commit `f00d747`; an imperative patch changed the live
+value to `drifted`, and a second Flux reconciliation restored `baseline`.
+Removing the declaration in cleanup commit `9f8ec96` caused `prune: true` to
+remove the ConfigMap. The final object was absent, while all three Kubernetes
+nodes remained Ready and all Flannel/system pods remained healthy.
+
+### Administrative lesson
+
+Talos owns the operating system, kubelet, etcd, static control-plane services,
+node networking and the Flannel CNI choice. Flux owns only Kubernetes objects
+declared in its reconciled paths: its controllers, Git sources, Kustomizations,
+Helm releases, platform configuration, namespaces and applications. A Git
+commit is the normal desired-state change; `kubectl` is an emergency exception,
+not a competing source of truth.
+
+Bootstrap is necessarily exceptional because Flux cannot manage itself before
+its controllers and Git source exist. The operator needs cluster-admin access
+and Git push access for bootstrap. The local command may use a short-lived
+provider token to configure a repository deploy key, while the in-cluster Flux
+credential should remain a dedicated read-only deploy key. The credential Secret
+is cluster-only and must never be copied into Git or printed.
+
+Kustomization dependencies make ordering explicit: controllers precede their
+configuration, and infrastructure precedes applications. `prune: true` makes
+Git removal authoritative, so deletion is safe only when the declaration and
+its data are intentionally disposable. Helm releases must pin chart versions,
+values and image references; avoid `latest` and record upgrades as Git changes.
+
+SOPS encrypts only Kubernetes Secret `data`/`stringData`, leaving kind and
+metadata visible to Kustomize. S06 created no real Secret and deliberately did
+not load the Talos age identity into Flux. Before adding credentials, create a
+dedicated Flux age identity, store its private half outside Git, create the
+cluster decryption Secret through an approved one-time procedure, and configure
+the owning Kustomization with the SOPS provider.
+
+### Reusable commands
+
+`flux check`, `flux get sources git -A`, `flux get kustomizations -A`, and
+`kubectl get pods -n flux-system` establish controller/source health.
+`flux reconcile kustomization <name> -n flux-system --with-source` requests a
+repeatable source fetch and apply. `kubectl get configmap` can verify a
+non-secret test object without exposing credentials. Use `git revert` for
+normal rollback; with `prune: true`, a successful reconciliation removes
+resources deleted from Git.
+
+For an emergency repair, suspend only the narrow Kustomization, make the
+smallest imperative change, record the command and resulting state, commit the
+equivalent Git change, resume, and reconcile. Do not use `--force` or uninstall
+Flux as a routine fix. Flux uninstall is a separate recovery operation that
+removes its controllers and CRDs after ownership has been reviewed.
+
+Optional exercise: add a second non-secret ConfigMap under `apps/rudtal/`,
+reconcile it, patch its live value, and use `flux get kustomizations` plus a
+second reconcile to explain why Git becomes authoritative again.
+
 ## Entry template
 
 ```markdown

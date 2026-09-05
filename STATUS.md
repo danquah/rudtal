@@ -9,8 +9,9 @@ here.
 
 The N100 control-plane node runs the reviewed S02 configuration from its
 internal SSD and hosts the Kubernetes cluster. Etcd was bootstrapped exactly
-once in S03. The S05 baseline and single-control-plane reboot exercise completed;
-all three nodes and system pods are healthy again.
+once in S03. S06 established Flux-based declarative add-on management while
+preserving the healthy Flannel baseline; all three nodes and system pods remain
+healthy.
 
 The installation half of S04A is complete for `rudtal-worker-1`. The N150 was
 installed from the reviewed worker configuration onto its approved internal
@@ -40,8 +41,11 @@ Tailscale remains untouched.
 - Worker Talos verification: v1.12.12, RBAC enabled, system disk `nvme0n1`, kubelet `Running`/`OK`
 - Etcd bootstrapped: yes, exactly once in S03
 - Kubernetes cluster running: yes; Kubernetes `v1.35.8`, Flannel CNI
-- Kubernetes add-ons: no Flux, Cilium or Tailscale installed; Flannel is the
-  known-good baseline for the upcoming declarative-management work.
+- Kubernetes add-ons: Flux `v2.9.5` is bootstrapped and healthy; Cilium and
+  Tailscale are not installed.
+- Flux source and Kustomizations are Ready at Git revision
+  `main@sha1:9f8ec968`; the cluster-only `flux-system` Git credential Secret
+  exists but its contents were never displayed.
 - Control-plane scheduling: enabled; no taints or unschedulable flag observed
 - S05 baseline before workload: Talos `get cpustats` cumulative user/system and
   `get memorystats` used/total (reported KiB) were `rudtal-cp-1` `178/528.83`,
@@ -156,11 +160,35 @@ Tailscale remains untouched.
 - The disposable Deployment, Service and the old `s03-smoke` pod were deleted
   after observation. No Tailscale configuration was added or changed.
 
+## S06 record
+
+- The operator completed GitHub bootstrap for
+  `git@github.com:danquah/rudtal.git` on `main`. Bootstrap-generated
+  non-secret files were fast-forwarded locally at revision `0c72f74`.
+- Flux `v2.9.5` is bootstrapped with source-controller `v1.9.5`,
+  kustomize-controller `v1.9.5`, helm-controller `v1.6.4` and
+  notification-controller `v1.9.4`. All four controller pods and Flux CRDs
+  verified healthy.
+- The cluster sync graph is `flux-system` → `infra-controllers` →
+  `infra-configs` → `apps`, with `dependsOn`, `wait: true`, `prune: true`,
+  ten-minute intervals and two-minute retry intervals. Repository declarations
+  live under `clusters/rudtal/`, `infrastructure/` and `apps/rudtal/`.
+- A harmless ConfigMap was committed as `f00d747`, reconciled from Git, changed
+  imperatively to prove drift correction, restored to its Git value, then
+  removed in cleanup commit `9f8ec96`. Flux pruned it; the final default
+  namespace contains no S06 application object.
+- The SOPS policy scopes future Kubernetes `*.sops.yaml` files to
+  `data`/`stringData`. No real Kubernetes Secret or Flux SOPS decryption key
+  was created; the Talos age identity remains outside the cluster.
+- Final checks: Flux `check`, source and Kustomization status, all three
+  Kubernetes nodes, Flannel, and system pods passed. No Cilium or Tailscale
+  configuration was added.
+
 ## Next action
 
-Begin S06 design for declarative Kubernetes add-on management. Establish the
-Talos-versus-Kubernetes ownership boundary and bootstrap Flux against the healthy
-Flannel cluster. Do not install Cilium or Tailscale before that design is recorded.
+Begin S07 Cilium disposable rebuild experiment from the healthy Flannel
+baseline. Keep the current cluster unchanged until the CNI replacement,
+kube-proxy choice and rollback path are reviewed.
 
 ## Known decisions
 
@@ -192,7 +220,7 @@ Flannel cluster. Do not install Cilium or Tailscale before that design is record
 | `S04A` | Complete | Installed `rudtal-worker-1` on its approved 512 GB NVMe; removed boot media; verified authenticated Talos and Kubernetes `Ready` |
 | `S04B` | Complete | Installed `rudtal-worker-2` on its approved 512 GB NVMe; removed boot media; verified authenticated Talos and Kubernetes `Ready` |
 | `S05` | Complete | Recorded Talos/Kubernetes baseline; deployed and cleaned up a LAN NodePort workload; rebooted and recovered only the control plane; documented worker continuity and reconciliation |
-| `S06` | Not started | Flux GitOps foundation and ownership boundary |
+| `S06` | Complete | Bootstrapped Flux v2.9.5 on GitHub, added the declarative cluster/infrastructure/apps layout, proved reconciliation and drift correction, and pruned the disposable check |
 | `S07` | Not started | Cilium disposable rebuild experiment |
 | `S08` | Not started | Tailscale operator and access controls |
 | `S09` | Not started | Full teardown and reproducible rebuild |
@@ -212,6 +240,7 @@ Flannel cluster. Do not install Cilium or Tailscale before that design is record
 - dedicated age identity: generated at `~/.config/sops/age/rudtal.txt`, mode 0600; recovery copy confirmed in the password manager
 - Initial local render was discarded; the Talos secrets bundle was rotated before final validation, and no rendered or plaintext secret file is retained in Git.
 - Git: initialized on `main`; S01 pipeline committed
+- Flux CLI: `$HOME/bin/flux` v2.9.5 installed after official Darwin arm64 SHA-256 verification; generated Flux manifests are tracked under `clusters/rudtal/flux-system/`
 
 The globally installed `talosctl` is v1.11.1. Use the exact v1.12.12 binary above
 until a later session deliberately changes the tool setup.
