@@ -272,6 +272,19 @@ Exit criterion: the cross-machine procedure decrypt-tests without displaying
 plaintext, renders a valid ignored configuration, documents rotation and lost
 access, and fails as expected when 1Password access is removed.
 
+### 10. Curate the long-lived repository
+
+After every operational and recovery path has been exercised, consolidate the
+working documents into a durable `docs/` tree. Keep the root focused on the
+operator entry point, agent instructions, version/encryption policy and live
+configuration. Archive completed plans and session status separately from the
+authoritative architecture, security and runbooks. Preserve Flux and Talos paths
+unless their consumers are migrated and verified in the same change.
+
+Exit criterion: a clean clone has one discoverable procedure per routine task,
+all links and configuration builds validate, credential-shaped history has been
+reviewed safely, and Flux remains healthy on the unchanged sync path.
+
 ## Decisions to confirm before implementation
 
 1. Confirm the inventory is two N150 machines plus one N100 machine, and provide

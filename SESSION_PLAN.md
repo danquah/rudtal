@@ -34,6 +34,7 @@ At the start of every session, tell the agent:
 | `S08` | Tailnet identity, Kubernetes authentication and RBAC, operator credentials, tags/grants, service exposure and recovery access |
 | `S09` | Declarative rebuilds, cluster identity versus workload state, credential rotation, reset scope and recovery testing |
 | `S10` | 1Password secret references, SOPS key sources, cross-machine recovery, credential exposure boundaries and recovery verification |
+| `S11` | Durable runbooks versus project history, repository information architecture, reference migration, clean-clone validation and secret hygiene |
 
 ## S00: finish control-plane discovery
 
@@ -250,7 +251,7 @@ Work:
 Stop condition: a clean rebuild succeeds and its procedure is usable without chat
 history.
 
-## S10: final 1Password and cross-machine recovery drill
+## S10: 1Password and cross-machine recovery drill
 
 Run this after S09. The detailed design
 and command patterns live in `ONEPASSWORD_RECOVERY.md`.
@@ -292,6 +293,50 @@ decrypt-test `talos/secrets.sops.yaml` without emitting plaintext, render a vali
 ignored machine config, and explain how `talosconfig` and `kubeconfig` can be
 recreated. The test must also prove that removing 1Password access makes
 decryption fail.
+
+## S11: repository curation and durable handoff
+
+Run this only after S10, when the installation, rebuild, GitOps and recovery
+procedures have been exercised. Moving active handoff files earlier would create
+avoidable churn for agents and links while the project is still changing.
+
+Goal: turn the construction workspace into a maintainable long-lived operations
+repository without changing the live cluster or Flux reconciliation paths.
+
+Work:
+
+1. Classify every root document as a durable entry point, an operational runbook,
+   learning material or completed project history. Keep only the short `README`,
+   agent entry points, version and encryption policy files, and live configuration
+   directories at the root.
+2. Create a coherent `docs/` tree. Distill the durable content into architecture,
+   security and runbook documents; move the learning log under `docs/learning/`;
+   archive the completed plan, session plan and final status under
+   `docs/project-history/`. Avoid retaining multiple documents that claim to be
+   the authoritative procedure for the same operation.
+3. Preserve `clusters/rudtal/`, `infrastructure/`, `apps/`, `talos/`, `scripts/`,
+   `.sops.yaml` and `versions.env` at their established paths unless a separately
+   reviewed Flux or script migration proves a path change safe.
+4. Rewrite the root `README` as a concise operator entry point: architecture,
+   routine health checks, change workflow, rebuild, secret recovery and links to
+   the authoritative runbooks. Update `AGENTS.md`, `CLAUDE.md` and all relative
+   links for the new locations.
+5. Review the stranded `rudtal01/` marker and its ignored local artifacts without
+   displaying credential-bearing files. Decide whether its warning still adds
+   value; if the local artifacts are retired, use a recoverable removal procedure
+   and retain any necessary historical warning in the archive.
+6. Validate Markdown links, Kustomize/Flux paths, render and validation scripts,
+   ignore rules and the tracked file set. Scan the reachable Git history for
+   credential-shaped material without printing matches. Perform a clean-clone
+   documentation/recovery walkthrough and confirm Flux remains healthy and points
+   at the unchanged cluster path.
+7. Record the final repository map, archive the completed status, and optionally
+   tag the reviewed lab baseline only after the local and remote commits match.
+
+Stop condition: a new operator can clone the repository, find one authoritative
+procedure for each routine task, understand which files are live configuration
+versus history, and verify the lab without relying on the session documents or
+chat history. The live cluster and Flux reconciliation graph are unchanged.
 
 ## End-of-session protocol
 

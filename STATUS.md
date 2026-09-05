@@ -26,7 +26,7 @@ virtual media unmounted. S05 changed no configuration, storage or boot media;
 Tailscale remains untouched.
 
 - Date recorded: 2026-09-05
-- Current session: `S05`, baseline and control-plane failure exercise complete
+- Current session: `S06`, Flux GitOps foundation complete
 - Active physical node: `rudtal-cp-1` (rebooted and restored)
 - Control-plane and Kubernetes address: `192.168.1.121`
 - Worker address: `192.168.1.122`
@@ -202,12 +202,15 @@ kube-proxy choice and rollback path are reviewed.
   rebuild before Tailscale is added.
 - Final recovery session: S10 will store the SOPS age identity in 1Password and
   prove decryption and configuration rendering from a second trusted machine.
+- Repository curation is deferred to S11, after the rebuild and recovery material
+  has stabilized; live Talos and Flux paths remain unchanged until then.
 
 ## Open items
 
 - Confirm LAN CIDR, gateway, DHCP pool, DNS and NTP.
 - Record JetKVM authentication, firmware and Tailscale state.
 - Complete the final 1Password cross-machine recovery drill in S10.
+- Complete the final repository curation and clean-clone handoff in S11.
 
 ## Session log
 
@@ -225,6 +228,7 @@ kube-proxy choice and rollback path are reviewed.
 | `S08` | Not started | Tailscale operator and access controls |
 | `S09` | Not started | Full teardown and reproducible rebuild |
 | `S10` | Not started | 1Password-backed SOPS recovery from a second machine |
+| `S11` | Not started | Curate durable documentation, archive project history and validate a clean clone |
 
 ## Local tooling
 
