@@ -9,19 +9,22 @@ here.
 
 The N100 control-plane node runs the reviewed S02 configuration from its
 internal SSD and hosts the Kubernetes cluster. Etcd was bootstrapped exactly
-once in S03. Kubernetes reports both `rudtal-cp-1` and `rudtal-worker-1` Ready.
+once in S03. Kubernetes reports `rudtal-cp-1`, `rudtal-worker-1`, and
+`rudtal-worker-2` Ready.
 
 The installation half of S04A is complete for `rudtal-worker-1`. The N150 was
 installed from the reviewed worker configuration onto its approved internal
 NVMe. The operator removed the physical installer USB and unmounted JetKVM
 virtual CD/DVD media after the reboot.
 
-S04B discovery has identified the final N150 at `192.168.1.123`. Its reservation
-and install-disk wipe approval remain pending. No configuration has been rendered
-or applied to this node.
+S04B installation and verification are complete for `rudtal-worker-2` at
+`192.168.1.123`. The router reservation for MAC `e0:51:d8:1a:83:85` was
+verified before apply; the approved internal NVMe was wiped and Talos installed.
+The operator removed the physical installer USB after reboot and left JetKVM
+virtual media unmounted. No other node or Tailscale configuration was touched.
 
 - Date recorded: 2026-09-05
-- Current session: `S04B`, discovery in progress
+- Current session: `S04B`, installation and verification complete
 - Active physical node: `rudtal-worker-2`
 - Control-plane and Kubernetes address: `192.168.1.121`
 - Worker address: `192.168.1.122`
@@ -41,13 +44,17 @@ or applied to this node.
 - S03 kubeconfig: `state/kubeconfig` (ignored, mode `0600`; contents never committed)
 - Kubernetes worker verification: `rudtal-worker-1` `Ready`, internal IP
   `192.168.1.122`, Kubernetes `v1.35.8`, Talos `v1.12.12`
+- Final worker Talos verification: server v1.12.12, RBAC enabled, system disk
+  `nvme0n1`, and kubelet `Running`/`OK`
+- Final Kubernetes verification: `rudtal-worker-2` `Ready`, internal IP
+  `192.168.1.123`, Kubernetes `v1.35.8`, Talos `v1.12.12`
 - Final worker maintenance address: `192.168.1.123`
 - Final worker wired MAC: `e0:51:d8:1a:83:85` on `enp3s0`
 - Final worker hardware: Intel N150, 4 cores / 4 threads, 16,384 MiB RAM
-- Final worker prospective disk: `/dev/nvme0n1`, TWSC TSC3AN512E6-F2T60S,
-  512 GB, serial `TTSMA253SX01711`; wipe not approved
-- Final worker boot media: physical SanDisk USB at `/dev/sda`; JetKVM `sr0` is
-  present but empty
+- Final worker install disk: `/dev/nvme0n1`, TWSC TSC3AN512E6-F2T60S,
+  512 GB, serial `TTSMA253SX01711`; wipe approved and completed
+- Final worker boot media: physical SanDisk USB removed after reboot; JetKVM
+  `sr0` was empty and virtual media was unmounted
 
 ## S03 record
 
@@ -89,13 +96,31 @@ or applied to this node.
 - Authenticated Talos verification passed: server v1.12.12 with RBAC enabled, system disk `nvme0n1`, and kubelet `Running`/`OK`.
 - Kubernetes verification passed: `rudtal-worker-1` registered at `192.168.1.122` and became `Ready` on v1.35.8.
 
+## S04B installation record
+
+- The operator explicitly approved erasing the final worker's `/dev/nvme0n1`
+  (TWSC TSC3AN512E6-F2T60S, 512 GB) before rendering or applying the worker
+  configuration.
+- Render command: `INSTALL_DISK=/dev/nvme0n1 ./scripts/render.sh worker rudtal-worker-2`.
+- Strict Talos metal validation passed for
+  `generated/rudtal-worker-2/worker.yaml`.
+- Final pre-apply discovery matched `192.168.1.123`, MAC
+  `e0:51:d8:1a:83:85`, and the writable 512 GB TWSC NVMe; `/dev/sda` was the
+  distinct physical USB and `sr0` was empty read-only JetKVM media.
+- Pinned `talosctl-v1.12.12 apply-config --insecure` completed without error
+  and installed Talos to the approved NVMe.
+- After reboot, the operator removed the physical USB and left JetKVM virtual
+  media unmounted.
+- Authenticated Talos verification passed: server v1.12.12 with RBAC enabled,
+  system disk `nvme0n1`, and kubelet `Running`/`OK`.
+- Kubernetes verification passed: `rudtal-worker-2` registered at
+  `192.168.1.123` and became `Ready` on v1.35.8.
+
 ## Next action
 
-Confirm that the router reserves `192.168.1.123` for MAC
-`e0:51:d8:1a:83:85`, reboot into maintenance mode from the physical USB, and
-verify the address plus hardware identity again. Then explicitly approve or reject
-erasing the 512 GB TWSC `/dev/nvme0n1`. Do not render or apply the worker config
-before both checkpoints.
+Begin S05 baseline and failure exercise. Keep the two N150 workers and the
+schedulable N100 control plane unchanged; do not add Tailscale access before
+the S06 design step.
 
 ## Known decisions
 
@@ -112,8 +137,6 @@ before both checkpoints.
 
 ## Open items
 
-- Confirm the `.123` reservation for `rudtal-worker-2` and approve or reject its
-  prospective `/dev/nvme0n1` install disk.
 - Confirm LAN CIDR, gateway, DHCP pool, DNS and NTP.
 - Record JetKVM authentication, firmware and Tailscale state.
 - Complete the final 1Password cross-machine recovery drill in S09.
@@ -127,7 +150,7 @@ before both checkpoints.
 | `S02` | Complete | N100 installed on `nvme0n1`; authenticated Talos v1.12.12 API verified |
 | `S03` | Complete | Etcd bootstrapped once; kubeconfig retrieved to ignored state; single-node Kubernetes healthy; disposable smoke pod running |
 | `S04A` | Complete | Installed `rudtal-worker-1` on its approved 512 GB NVMe; removed boot media; verified authenticated Talos and Kubernetes `Ready` |
-| `S04B` | Discovery in progress | Hardware identified at `.123`; reservation verification and disk approval pending |
+| `S04B` | Complete | Installed `rudtal-worker-2` on its approved 512 GB NVMe; removed boot media; verified authenticated Talos and Kubernetes `Ready` |
 | `S05` | Not started | Baseline workload and failure exercise |
 | `S06` | Not started | Tailscale operator and access controls |
 | `S07` | Not started | Full teardown and reproducible rebuild |

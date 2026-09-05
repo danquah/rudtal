@@ -1,4 +1,4 @@
-# The wired interface and install disk are intentionally pending S04B inventory.
+# Network addressing is supplied by DHCP; the router reservation and install disk were verified in S04B.
 apiVersion: v1alpha1
 kind: HostnameConfig
 hostname: rudtal-worker-2

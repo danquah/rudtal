@@ -9,7 +9,7 @@ Fill this in before generating physical machine configuration. Values marked
 |---|---|---|---:|---|---|---|---|---|
 | `rudtal-cp-1` | G3 | N100 | 16 GB | AirDisk 256 GB | `e0:51:d8:12:d2:66` | TBD | `/dev/nvme0n1` | Yes |
 | `rudtal-worker-1` | G3 Plus | N150 | 16 GB | TWSC TSC3AN512E6-F2T60S / 512 GB | `e0:51:d8:1a:80:37` | SMBIOS firmware version unavailable (`Default string`) | `/dev/nvme0n1` | Yes |
-| `rudtal-worker-2` | G3 Plus | N150 | 16 GB | TWSC TSC3AN512E6-F2T60S / 512 GB | `e0:51:d8:1a:83:85` | SMBIOS firmware version unavailable (`Default string`) | `/dev/nvme0n1` | TBD |
+| `rudtal-worker-2` | G3 Plus | N150 | 16 GB | TWSC TSC3AN512E6-F2T60S / 512 GB | `e0:51:d8:1a:83:85` | SMBIOS firmware version unavailable (`Default string`) | `/dev/nvme0n1` | Yes |
 
 Do not copy `/dev/nvme0n1` or `/dev/sda` from the stranded configuration without
 checking the disks shown by each machine in Talos maintenance mode.
@@ -27,7 +27,7 @@ The operator explicitly approved erasing `/dev/nvme0n1` during S04A before rende
 | DHCP pool | TBD | TBD |
 | `rudtal-cp-1` | `192.168.1.121` | Confirmed after reboot for `e0:51:d8:12:d2:66` |
 | `rudtal-worker-1` | `192.168.1.122` | Confirmed after reboot for `e0:51:d8:1a:80:37` |
-| `rudtal-worker-2` | `192.168.1.123` | TBD |
+| `rudtal-worker-2` | `192.168.1.123` | Confirmed after reboot for `e0:51:d8:1a:83:85` |
 | Kubernetes API endpoint | `192.168.1.121:6443` | Confirmed after S03 bootstrap and `/readyz` check |
 | Kubernetes API DNS | `api.rudtal.home.arpa` | TBD |
 | DNS servers | TBD | TBD |
@@ -41,11 +41,13 @@ The first N150 maintenance boot was observed at `192.168.1.122` on wired
 interface `enp3s0` with MAC `e0:51:d8:1a:80:37`. The router reservation was
 verified after reboot on 2026-09-05.
 The second N150 maintenance boot was observed at `192.168.1.123` on wired
-interface `enp3s0` with MAC `e0:51:d8:1a:83:85`. Confirm that the router
-reservation maps this MAC to `.123`, then reboot and verify it before installation.
-Maintenance mode showed the internal 512 GB TWSC NVMe as `/dev/nvme0n1`, the
-physical SanDisk installer as `/dev/sda`, and an empty JetKVM virtual-media device
-as `/dev/sr0`. No wipe is approved yet.
+interface `enp3s0` with MAC `e0:51:d8:1a:83:85`. The router reservation was
+independently verified at `.123` before installation.
+Before installation, maintenance mode showed the internal 512 GB TWSC NVMe as
+`/dev/nvme0n1`, the physical SanDisk installer as `/dev/sda`, and an empty
+JetKVM virtual-media device as `/dev/sr0`.
+The operator explicitly approved erasing `/dev/nvme0n1`; it was installed with
+Talos and the physical installer media was removed after reboot.
 
 ## Access and recovery
 

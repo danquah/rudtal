@@ -343,6 +343,67 @@ reservation is reboot-tested and this specific NVMe is approved.
 Optional exercise: explain why `.123` alone cannot identify this NUC as reliably
 as the combination of `.123`, MAC `e0:51:d8:1a:83:85`, and the NVMe serial.
 
+
+## S04B: install the final worker
+
+### What happened
+
+The operator explicitly approved erasing `rudtal-worker-2`'s internal
+`/dev/nvme0n1` (TWSC TSC3AN512E6-F2T60S, 512 GB). The worker configuration was
+rendered from the same encrypted Talos secrets bundle used by the existing
+cluster and passed strict metal validation. The final maintenance-mode check
+matched `192.168.1.123`, wired MAC `e0:51:d8:1a:83:85`, and the writable NVMe;
+`/dev/sda` was the distinct physical SanDisk installer and `/dev/sr0` was empty
+read-only JetKVM media.
+
+The pinned Talos client applied the worker configuration with
+`--insecure`. Talos installed to the approved NVMe and rebooted. After the
+reboot, the operator removed the physical USB and left JetKVM virtual media
+unmounted, so the next boot source is the installed system.
+
+Authenticated Talos verification reported server v1.12.12 with RBAC enabled,
+system disk `nvme0n1`, and kubelet `Running`/`OK`. Kubernetes registered
+`rudtal-worker-2` at `192.168.1.123` and reported it `Ready` on v1.35.8.
+The generated worker config remains under ignored `generated/`; the encrypted
+source remains in `talos/secrets.sops.yaml`; and the Kubernetes client
+credential remains in ignored `state/kubeconfig`. No Tailscale or other node
+was changed.
+
+### Administrative lesson
+
+The worker joins the existing trust domain through two related identities. The
+rendered Talos configuration carries cluster trust material derived from the
+same encrypted secrets bundle, allowing the installed node and authenticated
+Talos client to use the cluster's CA and RBAC. Kubelet then presents its node
+identity to the existing Kubernetes API and reports conditions and capacity.
+The worker does not bootstrap etcd and does not need a manually created join
+token in this design.
+
+The safe management boundary is deliberate: `apply-config --insecure` is used
+only once against the untrusted maintenance-mode endpoint. Later checks use
+the authenticated `talosconfig` for Talos and `state/kubeconfig` for Kubernetes.
+Rendering and strict validation are safe to repeat locally; applying the config
+is destructive to the selected disk. If installation fails, boot the recovery
+USB, rediscover the MAC and disk, inspect authenticated or maintenance-mode
+state as appropriate, and reinstall from corrected configuration. Never rerun
+etcd bootstrap.
+
+Useful commands:
+
+```sh
+INSTALL_DISK=/dev/nvme0n1 ./scripts/render.sh worker rudtal-worker-2
+./scripts/validate.sh generated/rudtal-worker-2/worker.yaml
+downloads/talosctl-v1.12.12-darwin-arm64 \
+  --talosconfig generated/rudtal-cp-1/talosconfig \
+  --nodes 192.168.1.123 get systemdisk
+KUBECONFIG=state/kubeconfig kubectl \
+  wait --for=condition=Ready node/rudtal-worker-2 --timeout=180s
+```
+
+Optional exercise: explain why the pre-apply decision needed the reserved IP,
+the wired MAC, and the NVMe model/serial, and why the later Talos check used
+the authenticated `talosconfig` instead of `--insecure`.
+
 ## Entry template
 
 ```markdown
