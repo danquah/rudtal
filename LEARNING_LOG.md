@@ -194,6 +194,52 @@ deliberate recovery or rebuild procedure.
 Optional exercise: use the current status to explain why workloads can run on this
 control plane even though production clusters commonly keep it tainted.
 
+## S04A discovery: identifying the first worker
+
+### What happened
+
+The first N150 booted Talos v1.12.12 in maintenance mode. Its wired interface was
+identified as `enp3s0` with MAC `e0:51:d8:1a:80:37`. The router reservation for
+`192.168.1.122` was verified after reboot. Talos reported an Intel N150 with four
+cores, 16 GB RAM and three distinct storage devices:
+
+- `nvme0n1`: internal 512 GB TWSC NVMe, the prospective installation target;
+- `sda`: external 123 GB SanDisk physical USB;
+- `sr0`: read-only JetKVM virtual media.
+
+No worker configuration was rendered or applied, and the NVMe has not yet been
+approved for erasure.
+
+### Administrative lesson
+
+A worker does not need a separate manually created Kubernetes join token in this
+design. Its rendered Talos machine configuration will contain the cluster trust
+material derived from the same encrypted Talos secrets bundle. After installation,
+Talos starts kubelet and the node presents its identity to the existing Kubernetes
+control plane. That trust step belongs to the installation half of S04A.
+
+The discovery step is deliberately separate because an IP address identifies a
+current network lease, while the wired MAC identifies the interface used for the
+router reservation. Disk model, size, serial and transport distinguish the
+internal installation target from attached recovery media. The repeated read-only
+queries are safe; applying a worker configuration is the later destructive step.
+
+Useful maintenance-mode checks:
+
+```sh
+talosctl --nodes 192.168.1.122 get links --insecure
+talosctl --nodes 192.168.1.122 get disks --insecure
+talosctl --nodes 192.168.1.122 get processors --insecure
+talosctl --nodes 192.168.1.122 get memorymodules --insecure
+```
+
+If the reservation does not produce `.122`, keep the node in maintenance mode,
+verify the router entry against the observed MAC, and reboot. Do not embed a
+guessed address or apply configuration as a workaround.
+
+Optional exercise: use the recorded model, size and transport fields to explain
+why `nvme0n1`, rather than `sda` or `sr0`, is the proposed worker install disk.
+
 ## Entry template
 
 ```markdown
