@@ -1,3 +1,8 @@
 creation_rules:
   - path_regex: ^talos/secrets\.sops\.yaml$
     age: age1j3w4zy9xxuyvupxt4pucx6v9qq29k3xr2u0lnpyvcvka4x6tvy3qtprr60
+  # S06 Kubernetes Secret policy. Replace this recipient with a dedicated Flux
+  # age recipient before creating any real add-on Secret.
+  - path_regex: ^(clusters/rudtal|infrastructure|apps)/.*\.sops\.yaml$
+    encrypted_regex: ^(data|stringData)$
+    age: age1j3w4zy9xxuyvupxt4pucx6v9qq29k3xr2u0lnpyvcvka4x6tvy3qtprr60
