@@ -5,12 +5,33 @@ Each one starts from repository state rather than chat history and ends with a
 reviewable artifact or an observed checkpoint. The operator stays at the console
 for installation, bootstrap, reset and credential-backup steps.
 
+Each session also has a teaching deliverable. The agent explains new commands
+before using them, interprets the important result afterward, and updates
+`LEARNING_LOG.md`. The explanation should answer four practical questions: what
+component was touched, why the operation was needed, where its state lives, and
+how an administrator verifies or recovers it later.
+
 At the start of every session, tell the agent:
 
 > Read `AGENTS.md`, `STATUS.md`, `SECURITY.md` and the relevant session in
 > `SESSION_PLAN.md`. Work only on that session. Explain each machine-changing
-> command before running it so I can follow along. Update `STATUS.md` and the
-> relevant runbook before finishing.
+> command before running it so I can follow along. Teach me the Talos and
+> Kubernetes concepts behind the work, interpret important output, and update
+> `LEARNING_LOG.md`, `STATUS.md`, and the relevant runbook before finishing.
+
+## Learning map
+
+| Session | Concepts to explain |
+|---|---|
+| `S00` | UEFI boot flow, installer versus installed system, maintenance mode, DHCP identity, Talos resource queries and Linux disk names |
+| `S01` | Talos PKI and cluster identity, SOPS envelope encryption, age recipients and identities, source inputs versus rendered credentials, version pinning |
+| `S02` | Machine configuration lifecycle, why initial apply uses `--insecure`, transition to mTLS/RBAC, system disk selection and installation recovery |
+| `S03` | Why etcd bootstrap happens once, etcd quorum, static control-plane pods, kubeconfig versus talosconfig, CNI startup and scheduling |
+| `S04A/B` | Worker trust and joining, node identity, DHCP reservations, kubelet registration, certificates and node readiness |
+| `S05` | Control plane versus data plane, desired state and reconciliation, workload controllers, service routing and failure behavior |
+| `S06` | Tailnet identity, Kubernetes authentication and RBAC, operator credentials, tags/grants, service exposure and recovery access |
+| `S07` | Declarative rebuilds, cluster identity versus workload state, credential rotation, reset scope and recovery testing |
+| `S08` | Management versus workload clusters, Cluster API reconciliation, infrastructure/bootstrap/control-plane providers and virtualization trade-offs |
 
 ## S00: finish control-plane discovery
 
@@ -182,3 +203,7 @@ Every agent session must:
 4. Summarize validation and any physical state, including which media is mounted
    and which device will boot next.
 5. Leave no plaintext secret in a tracked path or terminal transcript.
+6. Update `LEARNING_LOG.md` with the concepts, state changes, reusable
+   administrative commands, recovery notes and one optional hands-on exercise.
+7. In the final response, explain the result in enough detail that the operator
+   can describe what happened without relying on raw command output.

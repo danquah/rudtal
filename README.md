@@ -5,7 +5,8 @@ A rebuildable Talos Kubernetes learning lab for three GMKtec mini PCs.
 For a new Codex or Claude Code session, start with [STATUS.md](STATUS.md), then
 choose the next bounded task from [SESSION_PLAN.md](SESSION_PLAN.md). Shared agent
 rules live in [AGENTS.md](AGENTS.md); `CLAUDE.md` directs Claude Code to the same
-rules.
+rules. [LEARNING_LOG.md](LEARNING_LOG.md) explains what each completed session
+changed and builds a practical Talos administration reference as the lab grows.
 
 Start with [PROJECT_PLAN.md](PROJECT_PLAN.md). It explains the recommended
 architecture, learning stages, Git layout, Tailscale integration and the later
