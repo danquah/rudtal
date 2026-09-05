@@ -24,7 +24,7 @@ checking the disks shown by each machine in Talos maintenance mode.
 | `rudtal-cp-1` | `192.168.1.121` | Confirmed after reboot for `e0:51:d8:12:d2:66` |
 | `rudtal-worker-1` | `192.168.1.122` | TBD |
 | `rudtal-worker-2` | `192.168.1.123` | TBD |
-| Kubernetes API endpoint | `192.168.1.121:6443` | TBD |
+| Kubernetes API endpoint | `192.168.1.121:6443` | Confirmed after S03 bootstrap and `/readyz` check |
 | Kubernetes API DNS | `api.rudtal.home.arpa` | TBD |
 | DNS servers | TBD | TBD |
 | NTP reachable | TBD | TBD |

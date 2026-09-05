@@ -105,3 +105,16 @@ for `diskutil eject` to succeed before removing the stick.
 Writing the image replaces the USB stick's partition table and existing contents.
 These commands describe the whole-device alternative; do not use them when making
 the recommended `TALOS_1` plus `DATA` layout.
+
+## S03 post-install checkpoint
+
+After the control-plane installation rebooted from `/dev/nvme0n1`, the installer
+USB was removed. On 2026-09-05, `diskutil list external physical` returned no
+external physical device. Talos reported the internal `nvme0n1` disk and an empty
+`sr0` Virtual Media device, so the installer was not available as boot media.
+
+Only after that check, bootstrap the single control-plane etcd cluster once with
+the pinned `talosctl`, retrieve the kubeconfig into ignored local state, and
+verify the Kubernetes node and system pods. If the bootstrap must be undone,
+follow the deliberate Talos reset/rebuild procedure; never rerun bootstrap on
+an initialized cluster.
