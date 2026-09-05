@@ -8,10 +8,11 @@ here.
 ## Current checkpoint
 
 The N100 control-plane node runs the reviewed S02 configuration from its
-internal SSD and hosts the Kubernetes cluster. Etcd was bootstrapped exactly
-once in S03. S06 established Flux-based declarative add-on management while
-preserving the healthy Flannel baseline; all three nodes and system pods remain
-healthy.
+internal SSD and hosts the current Kubernetes cluster. Etcd was bootstrapped
+exactly once for the initial cluster generation in S03. S06 established
+Flux-based declarative add-on management while preserving the healthy Flannel
+baseline. S07A prepared an isolated Cilium rebuild experiment without changing
+the live cluster.
 
 The installation half of S04A is complete for `rudtal-worker-1`. The N150 was
 installed from the reviewed worker configuration onto its approved internal
@@ -26,7 +27,7 @@ virtual media unmounted. S05 changed no configuration, storage or boot media;
 Tailscale remains untouched.
 
 - Date recorded: 2026-09-05
-- Current session: `S06`, Flux GitOps foundation complete
+- Current session: `S07A`, Cilium rebuild design and offline preparation
 - Active physical node: `rudtal-cp-1` (rebooted and restored)
 - Control-plane and Kubernetes address: `192.168.1.121`
 - Worker address: `192.168.1.122`
@@ -39,12 +40,13 @@ Tailscale remains untouched.
 - Talos config applied: yes to `rudtal-cp-1`, `rudtal-worker-1` and
   `rudtal-worker-2`
 - Worker Talos verification: v1.12.12, RBAC enabled, system disk `nvme0n1`, kubelet `Running`/`OK`
-- Etcd bootstrapped: yes, exactly once in S03
+- Etcd bootstrapped: yes, exactly once for the initial generation in S03; no
+  S07B reset or bootstrap has occurred
 - Kubernetes cluster running: yes; Kubernetes `v1.35.8`, Flannel CNI
 - Kubernetes add-ons: Flux `v2.9.5` is bootstrapped and healthy; Cilium and
   Tailscale are not installed.
-- Flux source and Kustomizations are Ready at Git revision
-  `main@sha1:9f8ec968`; the cluster-only `flux-system` Git credential Secret
+- Flux source and Kustomizations are Ready at the observed live Git revision
+  `main@sha1:850d7a23`; the cluster-only `flux-system` Git credential Secret
   exists but its contents were never displayed.
 - Control-plane scheduling: enabled; no taints or unschedulable flag observed
 - S05 baseline before workload: Talos `get cpustats` cumulative user/system and
@@ -184,11 +186,42 @@ Tailscale remains untouched.
   Kubernetes nodes, Flannel, and system pods passed. No Cilium or Tailscale
   configuration was added.
 
+## S07A record
+
+- Scope: offline design and branch-local preparation only. No Talos node, disk,
+  machine configuration, etcd state, Kubernetes object, Flux reconciliation or
+  GitHub branch was changed by S07A.
+- The live read-only baseline on 2026-09-05 remained three Ready nodes on
+  Kubernetes `v1.35.8`, Talos `v1.12.12`, Flannel and kube-proxy, with CoreDNS
+  and all four Flux controllers healthy. Flux reported
+  `main@sha1:850d7a23`; no Cilium resources were present.
+- `origin/main` was fetched at `850d7a23`. Local `main` is
+  `a6233e47` with one local documentation commit on top, so no fast-forward,
+  merge, rebase or history rewrite was performed.
+- Branch `experiment/cilium-s07` contains the reviewed no-CNI Talos override,
+  optional render hook, pinned Cilium OCI source and HelmRelease, Cilium
+  values, Flux dependency ordering, design document and physical S07B runbook.
+  The branch retains Talos-managed kube-proxy and uses Kubernetes IPAM.
+- Offline evidence: all three Cilium-patched generated machine configs passed
+  pinned strict metal validation; Cilium Kustomize output built and parsed;
+  chart `1.18.13` linted successfully and rendered with the recorded OCI/image
+  digests. Generated configs remain ignored and were never displayed.
+- Lifecycle wording now says etcd is bootstrapped once per fresh cluster
+  generation: once for the initial S03 generation and, only after a deliberate
+  S07B/S09 reset, once for that new generation.
+
+S07B remains gated on reviewer/operator approval of the final branch commit,
+workload and node-local-storage disposability, the one-time branch push for Flux
+bootstrap, endpoint/MAC/disk matches from `INVENTORY.md`, the destructive reset
+and reinstall, and the recorded Flannel rollback rebuild.
+
+
 ## Next action
 
-Begin S07 Cilium disposable rebuild experiment from the healthy Flannel
-baseline. Keep the current cluster unchanged until the CNI replacement,
-kube-proxy choice and rollback path are reviewed.
+Review and approve the S07A branch commit and design. Before any S07B
+physical action, make the experiment branch reachable for Flux, confirm the
+workload/storage disposal decision, match every endpoint/MAC/disk, and retain
+the documented Flannel fresh-generation rollback.
 
 ## Known decisions
 
@@ -224,7 +257,7 @@ kube-proxy choice and rollback path are reviewed.
 | `S04B` | Complete | Installed `rudtal-worker-2` on its approved 512 GB NVMe; removed boot media; verified authenticated Talos and Kubernetes `Ready` |
 | `S05` | Complete | Recorded Talos/Kubernetes baseline; deployed and cleaned up a LAN NodePort workload; rebooted and recovered only the control plane; documented worker continuity and reconciliation |
 | `S06` | Complete | Bootstrapped Flux v2.9.5 on GitHub, added the declarative cluster/infrastructure/apps layout, proved reconciliation and drift correction, and pruned the disposable check |
-| `S07` | Not started | Cilium disposable rebuild experiment |
+| `S07` | In progress | S07A Cilium design and offline preparation complete; destructive S07B rebuild pending approval |
 | `S08` | Not started | Tailscale operator and access controls |
 | `S09` | Not started | Full teardown and reproducible rebuild |
 | `S10` | Not started | 1Password-backed SOPS recovery from a second machine |

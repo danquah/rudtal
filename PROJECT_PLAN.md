@@ -184,8 +184,9 @@ verify its checksum. Upload it to JetKVM, mount it in disk or CD/DVD mode, and b
 each mini PC from the read-only virtual drive into maintenance mode. Confirm the
 node's disk and network identity before applying only that node's rendered
 configuration. Unmount the installer after the node boots from its internal disk.
-Bootstrap etcd exactly once, then retrieve a fresh kubeconfig and verify all nodes
-and system pods.
+Bootstrap etcd exactly once for this initial cluster generation, then retrieve
+a fresh kubeconfig and verify all nodes and system pods. A deliberate rebuild
+creates a new generation and repeats that bootstrap exactly once.
 
 Do the first installation interactively, one node at a time. Record observations
 and fixes as patches or runbook changes rather than editing rendered YAML.

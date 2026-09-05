@@ -55,7 +55,7 @@ Safety rules:
   against `INVENTORY.md` in the same session.
 - Do not apply configuration to a temporary DHCP discovery address when a reserved
   address is expected.
-- Bootstrap etcd exactly once, in session S03.
+- Bootstrap etcd exactly once for the initial cluster generation in S03. A deliberate rebuild in S07B or S09 creates a fresh generation and may bootstrap etcd exactly once after reset/reinstall; never rerun bootstrap on an initialized generation.
 - Use `downloads/talosctl-v1.12.12-darwin-arm64` for the pinned v1.12.12 cluster;
   the global binary is older.
 - Verify changing platform versions and compatibility against primary upstream

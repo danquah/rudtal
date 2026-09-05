@@ -1,0 +1,35 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cilium
+  namespace: kube-system
+spec:
+  interval: 10m
+  timeout: 10m
+  releaseName: cilium
+  targetNamespace: kube-system
+  storageNamespace: kube-system
+  chartRef:
+    kind: OCIRepository
+    name: cilium
+  valuesFrom:
+    - kind: ConfigMap
+      name: cilium-values
+      valuesKey: values.yaml
+  install:
+    createNamespace: false
+    crds: Create
+    # Explicitly permit the first Flux upgrade to adopt Helm-created resources.
+    disableTakeOwnership: false
+    remediation:
+      retries: 2
+  upgrade:
+    crds: CreateReplace
+    # Explicitly permit adoption of the bootstrap release's resources.
+    disableTakeOwnership: false
+    remediation:
+      retries: 2
+  test:
+    enable: false
+  driftDetection:
+    mode: enabled

@@ -8,6 +8,13 @@ ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 TALOSCTL="$ROOT_DIR/downloads/talosctl-v1.12.12-darwin-arm64"
 SOPS_AGE_KEY_FILE=${SOPS_AGE_KEY_FILE:-"$HOME/.config/sops/age/rudtal.txt"}
 export SOPS_AGE_KEY_FILE
+EXTRA_CONFIG_PATCH=${EXTRA_CONFIG_PATCH:-}
+if [ -n "$EXTRA_CONFIG_PATCH" ]; then
+  case "$EXTRA_CONFIG_PATCH" in
+    /*) ;;
+    *) EXTRA_CONFIG_PATCH="$ROOT_DIR/$EXTRA_CONFIG_PATCH" ;;
+  esac
+fi
 
 usage() {
   printf '%s\n' "usage: $0 controlplane rudtal-cp-1" "       $0 worker rudtal-worker-1|rudtal-worker-2" >&2
@@ -59,6 +66,12 @@ do
     exit 1
   }
 done
+if [ -n "$EXTRA_CONFIG_PATCH" ]; then
+  [ -r "$EXTRA_CONFIG_PATCH" ] || {
+    printf '%s\n' "missing extra config patch: $EXTRA_CONFIG_PATCH" >&2
+    exit 1
+  }
+fi
 
 mkdir -p "$ROOT_DIR/generated"
 work_dir=$(mktemp -d "$ROOT_DIR/generated/render.XXXXXX")
@@ -75,19 +88,28 @@ else
   output_target=$output_dir/$output_name
 fi
 
-"$TALOSCTL" gen config "$CLUSTER_NAME" "$CLUSTER_ENDPOINT" \
-  --with-secrets "$work_dir/secrets.yaml" \
-  --talos-version "$TALOS_VERSION" \
-  --kubernetes-version "$KUBERNETES_VERSION" \
-  --install-disk "$install_disk" \
-  --config-patch "@$ROOT_DIR/talos/patches/common.yaml" \
-  "$role_flag" "@$role_patch" \
-  --config-patch "@$ROOT_DIR/talos/patches/nodes/$node.yaml" \
-  --output-types "$output_types" \
-  --output "$output_target" \
-  --with-docs=false \
-  --with-examples=false \
-  --force
+render_config() {
+  "$TALOSCTL" gen config "$CLUSTER_NAME" "$CLUSTER_ENDPOINT" \
+    --with-secrets "$work_dir/secrets.yaml" \
+    --talos-version "$TALOS_VERSION" \
+    --kubernetes-version "$KUBERNETES_VERSION" \
+    --install-disk "$install_disk" \
+    --config-patch "@$ROOT_DIR/talos/patches/common.yaml" \
+    "$role_flag" "@$role_patch" \
+    --config-patch "@$ROOT_DIR/talos/patches/nodes/$node.yaml" \
+    "$@" \
+    --output-types "$output_types" \
+    --output "$output_target" \
+    --with-docs=false \
+    --with-examples=false \
+    --force
+}
+
+if [ -n "$EXTRA_CONFIG_PATCH" ]; then
+  render_config --config-patch "@$EXTRA_CONFIG_PATCH"
+else
+  render_config
+fi
 
 chmod 600 "$output_dir/$output_name"
 if [ "$role" = controlplane ]; then

@@ -105,7 +105,7 @@ Goal: create Kubernetes on the installed control-plane node.
 
 Work:
 
-1. Bootstrap etcd exactly once.
+1. Bootstrap etcd exactly once for the initial cluster generation.
 2. Retrieve `kubeconfig` into ignored local state.
 3. Wait for the Kubernetes node and system pods to become healthy.
 4. Confirm the control plane is schedulable and deploy one tiny disposable test
@@ -199,10 +199,10 @@ Work:
    the GitOps tree. Record Talos-specific settings, including removal of
    `SYS_MODULE`, reuse of Talos-provided cgroupv2/bpffs mounts, Kubernetes IPAM,
    and API endpoint settings required by the selected kube-proxy mode.
-4. Rebuild the disposable cluster from the Cilium branch. Treat the initial
-   Cilium installation as a documented bootstrap exception if Flux cannot run
-   before pod networking exists; hand management to Flux as soon as Cilium is
-   healthy and test whether the existing release can be adopted cleanly.
+4. Reset and rebuild a fresh cluster generation from the Cilium branch. Bootstrap
+   etcd exactly once for that generation, treat the initial Cilium installation
+   as a documented bootstrap exception if Flux cannot run before pod networking
+   exists, and hand management to Flux as soon as Cilium is healthy.
 5. Verify Cilium agents and operator on every node, pod-to-pod and pod-to-service
    connectivity, DNS, NodePort behavior and a simple CiliumNetworkPolicy. Record
    the difference between Talos host networking, CNI pod networking and eBPF
@@ -243,8 +243,9 @@ Work:
 1. Write and review a precise destruction/rebuild checklist.
 2. Confirm no workload state matters and deliberately reset the nodes one at a
    time.
-3. Re-render, reinstall, bootstrap and restore platform manifests using only the
-   repository and backed-up age identity.
+3. Re-render, reinstall, bootstrap etcd exactly once for the fresh generation,
+   and restore platform manifests using only the repository and backed-up age
+   identity.
 4. Time the rebuild and fix every undocumented step.
 5. Separately document how to rotate to an entirely new cluster identity.
 

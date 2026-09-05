@@ -8,7 +8,7 @@ metadata:
 spec:
   interval: 1m0s
   ref:
-    branch: main
+    branch: experiment/cilium-s07
   secretRef:
     name: flux-system
   url: ssh://git@github.com/danquah/rudtal.git

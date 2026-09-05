@@ -16,8 +16,15 @@ clusters/rudtal/
 ├── infrastructure.yaml          # Flux Kustomization objects
 └── apps.yaml                    # Flux Kustomization object
 infrastructure/
-├── controllers/kustomization.yaml
-└── configs/kustomization.yaml
+├── controllers/
+│   ├── kustomization.yaml
+│   └── cilium/                 # S07 experiment branch only
+│       ├── kustomization.yaml
+│       ├── cilium-source.yaml
+│       ├── cilium-release.yaml
+│       └── values.yaml
+└── configs/
+    └── kustomization.yaml
 apps/
 └── rudtal/kustomization.yaml
 ```
@@ -33,7 +40,7 @@ version and rollback path.
 | State | Owner | Rule |
 |---|---|---|
 | Talos OS, boot, disks, hostname, node networking, kubelet and machine API | Talos configuration under `talos/` and authenticated `talosctl` | Change through reviewed Talos patches and the existing installation/recovery procedure. Flux must not edit these resources. |
-| etcd, API server, scheduler, controller manager, static control-plane pods and Kubernetes bootstrap | Talos and the one-time S03 bootstrap | Never re-bootstrap etcd. Use Talos for control-plane recovery. |
+| etcd, API server, scheduler, controller manager, static control-plane pods and Kubernetes bootstrap | Talos and exactly one bootstrap per fresh cluster generation; initial generation is S03, rebuilds are deliberate S07B/S09 steps | Never re-bootstrap an initialized generation. Use Talos for control-plane recovery. |
 | Flannel CNI and the current node-level networking baseline | Talos/Kubernetes baseline | Do not replace Flannel in S06. Cilium is a separate disposable S07 rebuild. |
 | Flux controllers, GitRepository, Kustomizations, HelmRepositories, HelmReleases, namespaces and applications | Flux from this Git repository | After bootstrap, commit changes to Git and let Flux reconcile them. |
 | Kubernetes Secrets containing application or add-on credentials | SOPS-encrypted manifests under `infrastructure/` or `apps/`, decrypted by kustomize-controller | Encrypt only `data` or `stringData`; never commit plaintext or apply the encrypted file directly with `kubectl`. |
@@ -47,15 +54,15 @@ resources and generated client credentials remain outside this boundary.
 The bootstrap-generated `flux-system` Kustomization first makes the cluster
 root available. It then applies these Flux Kustomization objects:
 
-```text
 flux-system
     ↓
 infra-controllers  (./infrastructure/controllers)
     ↓
-infra-configs      (./infrastructure/configs)
+infra-cilium      (./infrastructure/controllers/cilium; S07 branch only)
     ↓
-apps               (./apps/rudtal)
-```
+infra-configs     (./infrastructure/configs)
+    ↓
+apps              (./apps/rudtal)
 
 Each child uses `prune: true`, `wait: true`, a ten-minute interval and a two-minute
 retry interval. `dependsOn` prevents configuration from racing a controller or

@@ -1,0 +1,19 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: cilium
+  namespace: kube-system
+spec:
+  interval: 1h
+  url: oci://quay.io/cilium/charts/cilium
+  ref:
+    # OCI manifest digest for Cilium chart 1.18.13, verified with Helm 3.19.0.
+    digest: sha256:876b611ff5c63b79d5e8e2621bdbad237ec9089cde72da333df61ff27b55fc81
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+  verify:
+    provider: cosign
+    matchOIDCIdentity:
+      - issuer: https://token.actions.githubusercontent.com
+        subject: https://github.com/cilium/cilium/.*

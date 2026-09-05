@@ -1,0 +1,6 @@
+# S07 disposable rebuild only. Apply after common.yaml so this overrides Flannel.
+# This branch retains Talos-managed kube-proxy; cluster.proxy.disabled is intentionally absent.
+cluster:
+  network:
+    cni:
+      name: none
