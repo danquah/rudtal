@@ -21,14 +21,14 @@ node=$2
 case "$role:$node" in
   controlplane:rudtal-cp-1)
     role_patch="$ROOT_DIR/talos/patches/controlplane.yaml"
-    output_type=controlplane
+    output_types=controlplane,talosconfig
     output_name=controlplane.yaml
     install_disk=$CONTROL_PLANE_INSTALL_DISK
     role_flag=--config-patch-control-plane
     ;;
   worker:rudtal-worker-1|worker:rudtal-worker-2)
     role_patch="$ROOT_DIR/talos/patches/worker.yaml"
-    output_type=worker
+    output_types=worker
     output_name=worker.yaml
     : "${INSTALL_DISK:?Set INSTALL_DISK to the disk confirmed for this worker}"
     install_disk=$INSTALL_DISK
@@ -69,6 +69,12 @@ sops --decrypt "$ROOT_DIR/talos/secrets.sops.yaml" > "$work_dir/secrets.yaml"
 rm -rf "$output_dir"
 mkdir -p "$output_dir"
 
+if [ "$role" = controlplane ]; then
+  output_target=$output_dir
+else
+  output_target=$output_dir/$output_name
+fi
+
 "$TALOSCTL" gen config "$CLUSTER_NAME" "$CLUSTER_ENDPOINT" \
   --with-secrets "$work_dir/secrets.yaml" \
   --talos-version "$TALOS_VERSION" \
@@ -77,11 +83,21 @@ mkdir -p "$output_dir"
   --config-patch "@$ROOT_DIR/talos/patches/common.yaml" \
   "$role_flag" "@$role_patch" \
   --config-patch "@$ROOT_DIR/talos/patches/nodes/$node.yaml" \
-  --output-types "$output_type" \
-  --output "$output_dir/$output_name" \
+  --output-types "$output_types" \
+  --output "$output_target" \
   --with-docs=false \
   --with-examples=false \
   --force
 
 chmod 600 "$output_dir/$output_name"
+if [ "$role" = controlplane ]; then
+  chmod 600 "$output_dir/talosconfig"
+  talos_endpoint=${CLUSTER_ENDPOINT#https://}
+  talos_endpoint=${talos_endpoint%%:*}
+  "$TALOSCTL" --talosconfig "$output_dir/talosconfig" config endpoint "$talos_endpoint"
+  "$TALOSCTL" --talosconfig "$output_dir/talosconfig" config node "$talos_endpoint"
+fi
 printf '%s\n' "rendered $output_dir/$output_name"
+if [ "$role" = controlplane ]; then
+  printf '%s\n' "rendered $output_dir/talosconfig"
+fi

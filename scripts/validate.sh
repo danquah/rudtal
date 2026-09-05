@@ -21,6 +21,7 @@ if [ "$1" = secrets ]; then
     printf '%s\n' "missing SOPS age identity: $SOPS_AGE_KEY_FILE" >&2
     exit 1
   }
+  mkdir -p "$ROOT_DIR/generated"
   work_dir=$(mktemp -d "$ROOT_DIR/generated/validate.XXXXXX")
   trap 'rm -rf "$work_dir"' EXIT HUP INT TERM
   sops --decrypt --output "$work_dir/secrets.yaml" "$ROOT_DIR/talos/secrets.sops.yaml"

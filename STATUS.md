@@ -7,13 +7,13 @@ here.
 
 ## Current checkpoint
 
-The repository now contains the S01 encrypted Talos configuration pipeline:
-version pins, SOPS policy, patch inputs, render and validation scripts, and a
-fresh SOPS-encrypted Talos secrets bundle. No machine configuration has been
-applied and no internal SSD has been erased.
+The S01 pipeline has been reviewed in S02. A valid control-plane machine config
+and matching `talosconfig` have been rendered under ignored `generated/`. The N100
+was re-identified immediately before the planned apply. No machine configuration
+has yet been applied and no internal SSD has yet been erased.
 
 - Date recorded: 2026-09-05
-- Current session: `S01` repository and encrypted configuration pipeline, complete
+- Current session: `S02` render, review and install the control plane, in progress
 - Active physical node: proposed `rudtal-cp-1`
 - Current maintenance address: `192.168.1.121`
 - Earlier discovery address: `192.168.1.12`
@@ -46,10 +46,11 @@ until a later session deliberately changes the tool setup.
 
 ## Next action
 
-Start `S02`: decrypt only into ignored temporary storage, render and review the
-control-plane configuration, validate it with the pinned client, then re-query
-the N100 at `192.168.1.121` and match its MAC and install disk before any apply.
-Do not bootstrap etcd in S02.
+With the operator watching JetKVM, apply
+`generated/rudtal-cp-1/controlplane.yaml` insecurely to the maintenance-mode N100
+at `192.168.1.121`. Remove the physical installer USB when the node begins to
+reboot so it boots from `/dev/nvme0n1`, then verify the authenticated Talos API
+with `generated/rudtal-cp-1/talosconfig`. Do not bootstrap etcd in S02.
 
 ## Known decisions
 
@@ -64,7 +65,6 @@ Do not bootstrap etcd in S02.
 
 ## Open items
 
-- Review the rendered control-plane configuration in S02 without committing it.
 - Inventory both N150 nodes and approve their exact install disks.
 - Confirm reservations for `192.168.1.122` and `192.168.1.123`.
 - Confirm LAN CIDR, gateway, DHCP pool, DNS and NTP.
@@ -76,7 +76,7 @@ Do not bootstrap etcd in S02.
 |---|---|---|
 | `S00` | Complete | Media verified; N100 and reserved `.121` address verified in maintenance mode |
 | `S01` | Complete | Age recovery copy confirmed; encrypted Talos inputs, patches, render/validate scripts, and clean local control-plane validation |
-| `S02` | Not started | Render, review and install the control plane |
+| `S02` | In progress | Config and client credential validated; MAC/disk rechecked; apply pending |
 | `S03` | Not started | Bootstrap and verify the single-node cluster |
 | `S04A` | Not started | Inventory and install worker 1 |
 | `S04B` | Not started | Inventory and install worker 2 |
