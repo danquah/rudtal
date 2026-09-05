@@ -13,18 +13,23 @@ bootstrapped exactly once in S03. Kubernetes reports `rudtal-cp-1` Ready,
 the control plane is schedulable, and all current `kube-system` pods are
 `1/1 Running`.
 
+The discovery half of S04A is complete for `rudtal-worker-1`. The first N150
+is in Talos v1.12.12 maintenance mode through JetKVM virtual media. Its
+router reservation for `192.168.1.122` and wired MAC `e0:51:d8:1a:80:37`
+was verified after reboot. No worker configuration was rendered or applied.
+
 - Date recorded: 2026-09-05
-- Current session: `S03` bootstrap and verify the single-node cluster, complete
-- Active physical node: `rudtal-cp-1`
-- Kubernetes and Talos address: `192.168.1.121`
-- Reserved address: `192.168.1.121` for MAC `e0:51:d8:12:d2:66`
-- Reboot state: installation reboot completed; authenticated Talos v1.12.12 API
-  responds with RBAC enabled; node boots from `/dev/nvme0n1`
-- Boot media: installer USB removed; macOS reported no external physical disk,
-  and Talos reported only the internal SSD plus an empty `sr0` Virtual Media device
-- Internal target: `/dev/nvme0n1`, AirDisk 256 GB; erasure explicitly approved
-- Hardware observed: Intel N100, 4 cores, 16 GB RAM, wired interface `enp3s0`
-- Talos config applied: yes, to `rudtal-cp-1` only
+- Current session: `S04A` discovery half, complete
+- Active physical node: `rudtal-worker-1`
+- Control-plane and Kubernetes address: `192.168.1.121`
+- Worker maintenance address: `192.168.1.122`
+- Worker reserved address: `192.168.1.122` for MAC `e0:51:d8:1a:80:37`
+- Worker reboot state: reservation verified; the node returned to Talos maintenance mode
+- Worker boot media: JetKVM virtual CD/DVD mounted as `/dev/sr0`; physical USB appeared as `/dev/sda`
+- Worker internal target: `/dev/nvme0n1`, TWSC TSC3AN512E6-F2T60S, 512 GB; no wipe approved
+- Worker hardware observed: Intel N150, 4 cores, 16 GB RAM, wired interface `enp3s0`
+- Worker firmware: Talos SMBIOS data reported `Default string`; firmware version unavailable
+- Talos config applied: yes to `rudtal-cp-1`; no worker config rendered or applied
 - Etcd bootstrapped: yes, exactly once in S03
 - Kubernetes cluster running: yes; Kubernetes `v1.35.8`, Flannel CNI
 - Control-plane scheduling: enabled; no taints or unschedulable flag observed
@@ -50,13 +55,23 @@ the control plane is schedulable, and all current `kube-system` pods are
 - Recovery boundary: do not rerun bootstrap; use the deliberate Talos reset and
   rebuild procedure in S07 if the single-node cluster must be recreated.
 
+## S04A discovery record
+
+- Target: `rudtal-worker-1`, GMKtec NucBox G3 Plus
+- Talos maintenance API: v1.12.12
+- Address observation: `192.168.1.122/24` on `enp3s0`; no separate pre-reservation lease was captured
+- Wired MAC: `e0:51:d8:1a:80:37`
+- CPU and memory: Intel N150, 4 cores / 4 threads, 16,384 MiB
+- Storage: internal NVMe `/dev/nvme0n1` (`TWSC TSC3AN512E6-F2T60S`, 512 GB); `/dev/sda` was the 123 GB SanDisk USB; `/dev/sr0` was JetKVM Virtual Media
+- Firmware: system information exposed `Default string`; no firmware version was available through maintenance mode
+- DHCP reservation: `192.168.1.122` for the observed MAC, verified after reboot
+- Worker configuration: not rendered and not applied; no disk was erased
+
 ## Next action
 
-Start the discovery half of `S04A`: connect JetKVM to the first N150, boot the
-Talos installer, note its temporary maintenance address, and inventory its wired
-MAC, RAM, firmware and exact install disk. Reserve `192.168.1.122` for the observed
-MAC, reboot and verify the reservation, then stop before rendering or applying any
-worker configuration. Do not touch `rudtal-worker-2` or Tailscale.
+In the worker-install portion of S04A, explicitly approve `/dev/nvme0n1`,
+then render and validate the worker configuration. Recheck the MAC and disk
+immediately before any apply. Do not touch `rudtal-worker-2` or Tailscale.
 
 ## Known decisions
 
@@ -71,8 +86,8 @@ worker configuration. Do not touch `rudtal-worker-2` or Tailscale.
 
 ## Open items
 
-- Inventory both N150 nodes and approve their exact install disks.
-- Confirm reservations for `192.168.1.122` and `192.168.1.123`.
+- Approve `/dev/nvme0n1` for `rudtal-worker-1` before any install; inventory `rudtal-worker-2` and approve its disk.
+- Confirm the reservation for `192.168.1.123`.
 - Confirm LAN CIDR, gateway, DHCP pool, DNS and NTP.
 - Record JetKVM authentication, firmware and Tailscale state.
 
@@ -84,7 +99,7 @@ worker configuration. Do not touch `rudtal-worker-2` or Tailscale.
 | `S01` | Complete | Age recovery copy confirmed; encrypted Talos inputs, patches, render/validate scripts, and clean local control-plane validation |
 | `S02` | Complete | N100 installed on `nvme0n1`; authenticated Talos v1.12.12 API verified |
 | `S03` | Complete | Etcd bootstrapped once; kubeconfig retrieved to ignored state; single-node Kubernetes healthy; disposable smoke pod running |
-| `S04A` | Not started | Inventory and install worker 1 |
+| `S04A` | Discovery complete | Inventoried `rudtal-worker-1`; verified `192.168.1.122` reservation for `e0:51:d8:1a:80:37` after reboot; no worker config applied |
 | `S04B` | Not started | Inventory and install worker 2 |
 | `S05` | Not started | Baseline workload and failure exercise |
 | `S06` | Not started | Tailscale operator and access controls |
