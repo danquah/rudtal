@@ -9,7 +9,7 @@ Fill this in before generating physical machine configuration. Values marked
 |---|---|---|---:|---|---|---|---|---|
 | `rudtal-cp-1` | G3 | N100 | 16 GB | AirDisk 256 GB | `e0:51:d8:12:d2:66` | TBD | `/dev/nvme0n1` | Yes |
 | `rudtal-worker-1` | G3 Plus | N150 | 16 GB | TWSC TSC3AN512E6-F2T60S / 512 GB | `e0:51:d8:1a:80:37` | SMBIOS firmware version unavailable (`Default string`) | `/dev/nvme0n1` | Yes |
-| `rudtal-worker-2` | G3 Plus | N150 | TBD | TBD | TBD | TBD | Confirm from maintenance mode | TBD |
+| `rudtal-worker-2` | G3 Plus | N150 | 16 GB | TWSC TSC3AN512E6-F2T60S / 512 GB | `e0:51:d8:1a:83:85` | SMBIOS firmware version unavailable (`Default string`) | `/dev/nvme0n1` | TBD |
 
 Do not copy `/dev/nvme0n1` or `/dev/sda` from the stranded configuration without
 checking the disks shown by each machine in Talos maintenance mode.
@@ -40,6 +40,12 @@ reservation and rebooting, `rudtal-cp-1` was reached and re-identified at
 The first N150 maintenance boot was observed at `192.168.1.122` on wired
 interface `enp3s0` with MAC `e0:51:d8:1a:80:37`. The router reservation was
 verified after reboot on 2026-09-05.
+The second N150 maintenance boot was observed at `192.168.1.123` on wired
+interface `enp3s0` with MAC `e0:51:d8:1a:83:85`. Confirm that the router
+reservation maps this MAC to `.123`, then reboot and verify it before installation.
+Maintenance mode showed the internal 512 GB TWSC NVMe as `/dev/nvme0n1`, the
+physical SanDisk installer as `/dev/sda`, and an empty JetKVM virtual-media device
+as `/dev/sr0`. No wipe is approved yet.
 
 ## Access and recovery
 

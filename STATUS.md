@@ -16,9 +16,13 @@ installed from the reviewed worker configuration onto its approved internal
 NVMe. The operator removed the physical installer USB and unmounted JetKVM
 virtual CD/DVD media after the reboot.
 
+S04B discovery has identified the final N150 at `192.168.1.123`. Its reservation
+and install-disk wipe approval remain pending. No configuration has been rendered
+or applied to this node.
+
 - Date recorded: 2026-09-05
-- Current session: `S04A`, installation complete
-- Active physical node: `rudtal-worker-1`
+- Current session: `S04B`, discovery in progress
+- Active physical node: `rudtal-worker-2`
 - Control-plane and Kubernetes address: `192.168.1.121`
 - Worker address: `192.168.1.122`
 - Worker reserved address: `192.168.1.122` for MAC `e0:51:d8:1a:80:37`
@@ -37,6 +41,13 @@ virtual CD/DVD media after the reboot.
 - S03 kubeconfig: `state/kubeconfig` (ignored, mode `0600`; contents never committed)
 - Kubernetes worker verification: `rudtal-worker-1` `Ready`, internal IP
   `192.168.1.122`, Kubernetes `v1.35.8`, Talos `v1.12.12`
+- Final worker maintenance address: `192.168.1.123`
+- Final worker wired MAC: `e0:51:d8:1a:83:85` on `enp3s0`
+- Final worker hardware: Intel N150, 4 cores / 4 threads, 16,384 MiB RAM
+- Final worker prospective disk: `/dev/nvme0n1`, TWSC TSC3AN512E6-F2T60S,
+  512 GB, serial `TTSMA253SX01711`; wipe not approved
+- Final worker boot media: physical SanDisk USB at `/dev/sda`; JetKVM `sr0` is
+  present but empty
 
 ## S03 record
 
@@ -80,8 +91,11 @@ virtual CD/DVD media after the reboot.
 
 ## Next action
 
-Begin S04B in a separate session to inventory and install `rudtal-worker-2`.
-Do not touch worker 2 or Tailscale as part of this completed S04A handoff.
+Confirm that the router reserves `192.168.1.123` for MAC
+`e0:51:d8:1a:83:85`, reboot into maintenance mode from the physical USB, and
+verify the address plus hardware identity again. Then explicitly approve or reject
+erasing the 512 GB TWSC `/dev/nvme0n1`. Do not render or apply the worker config
+before both checkpoints.
 
 ## Known decisions
 
@@ -98,8 +112,8 @@ Do not touch worker 2 or Tailscale as part of this completed S04A handoff.
 
 ## Open items
 
-- Inventory and approve the install disk for `rudtal-worker-2`.
-- Confirm the reservation for `192.168.1.123`.
+- Confirm the `.123` reservation for `rudtal-worker-2` and approve or reject its
+  prospective `/dev/nvme0n1` install disk.
 - Confirm LAN CIDR, gateway, DHCP pool, DNS and NTP.
 - Record JetKVM authentication, firmware and Tailscale state.
 - Complete the final 1Password cross-machine recovery drill in S09.
@@ -113,7 +127,7 @@ Do not touch worker 2 or Tailscale as part of this completed S04A handoff.
 | `S02` | Complete | N100 installed on `nvme0n1`; authenticated Talos v1.12.12 API verified |
 | `S03` | Complete | Etcd bootstrapped once; kubeconfig retrieved to ignored state; single-node Kubernetes healthy; disposable smoke pod running |
 | `S04A` | Complete | Installed `rudtal-worker-1` on its approved 512 GB NVMe; removed boot media; verified authenticated Talos and Kubernetes `Ready` |
-| `S04B` | Not started | Inventory and install worker 2 |
+| `S04B` | Discovery in progress | Hardware identified at `.123`; reservation verification and disk approval pending |
 | `S05` | Not started | Baseline workload and failure exercise |
 | `S06` | Not started | Tailscale operator and access controls |
 | `S07` | Not started | Full teardown and reproducible rebuild |

@@ -307,6 +307,42 @@ Optional exercise: explain why the final check needed both the wired MAC and
 the disk model/transport, and why `--insecure` is appropriate for the first
 maintenance-mode apply but not for the later `version` query.
 
+## S04B discovery: identify the final worker
+
+### What happened
+
+The final N150 booted Talos v1.12.12 from the physical USB and appeared at
+`192.168.1.123`. Read-only maintenance queries identified wired interface
+`enp3s0` with MAC `e0:51:d8:1a:83:85`, an Intel N150 with four cores, 16 GB RAM,
+and an internal 512 GB TWSC NVMe at `/dev/nvme0n1`. The physical installer was
+`/dev/sda`; JetKVM exposed an empty read-only `sr0` device because no virtual image
+was mounted.
+
+No worker configuration was rendered or applied. The internal disk remains
+unapproved for erasure until the operator confirms it explicitly.
+
+### Administrative lesson
+
+Seeing the desired `.123` address is evidence of the current DHCP lease, but it is
+not sufficient evidence that the router will always assign that address to this
+machine. The durable association is the reservation between `.123` and the wired
+MAC. Recording and reboot-testing that mapping prevents a later lease change from
+breaking the node address or directing an administrative command at the wrong
+machine.
+
+This second worker resembles the first, including the disk model, but it has a
+different disk serial and NIC MAC. Talos nodes must be verified individually even
+when the systems were bought together. Device names describe the current kernel's
+view; model, size, serial and transport establish which physical device the name
+refers to.
+
+The four `get` operations used here are repeatable read-only observations. The
+next irreversible boundary is `apply-config`, which will be allowed only after the
+reservation is reboot-tested and this specific NVMe is approved.
+
+Optional exercise: explain why `.123` alone cannot identify this NUC as reliably
+as the combination of `.123`, MAC `e0:51:d8:1a:83:85`, and the NVMe serial.
+
 ## Entry template
 
 ```markdown
