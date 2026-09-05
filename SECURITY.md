@@ -30,6 +30,17 @@ Tailscale access to JetKVM provides the console path; it is not a subnet route t
 the Talos or Kubernetes APIs unless routing is separately configured and approved.
 Unmount installer media after each node has installed successfully.
 
+## Configuration ownership
+
+Talos owns the operating system, kubelet, control-plane services, etcd and the
+initial cluster identity. Kubernetes add-ons are a separate layer: Flux, Cilium,
+Tailscale and later applications should be declared under the repository's
+Kubernetes directories and reconciled by Flux. A one-time bootstrap exception is
+acceptable for Flux itself and for Cilium when no pod network exists yet; record
+that exception and transfer ownership to Git as soon as the controllers are
+healthy. Pin chart and image versions, keep credentials in SOPS-encrypted Secrets,
+and document any emergency imperative change so Git can be made authoritative again.
+
 If plaintext cluster secrets or a rendered machine config enter Git history, do
 not rely on deleting the file from the latest commit. Generate a new Talos secrets
 bundle and rebuild the lab. Revoke and replace any exposed Tailscale credential.

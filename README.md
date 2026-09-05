@@ -12,7 +12,7 @@ cross-machine credential-recovery drill.
 
 Start with [PROJECT_PLAN.md](PROJECT_PLAN.md). It explains the recommended
 architecture, learning stages, Git layout, Tailscale integration and the later
-virtualization/Cluster API experiment. [SECURITY.md](SECURITY.md) defines which
+GitOps, Cilium and Tailscale experiments. [SECURITY.md](SECURITY.md) defines which
 artifacts may be committed. Fill in [INVENTORY.md](INVENTORY.md) before generating
 or applying physical machine configuration. [INSTALL_MEDIA.md](INSTALL_MEDIA.md)
 records the verified installer and JetKVM/USB procedure.

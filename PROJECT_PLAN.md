@@ -59,8 +59,10 @@ with `api.rudtal.home.arpa` pointing to it. A layer-2 API VIP becomes useful onl
 if the lab is deliberately converted to three control-plane nodes. All addresses
 remain provisional until DHCP reservations and the router's pool are checked.
 
-Start with Talos' default Flannel CNI. Introduce Cilium only after the first full
-rebuild, when there is a working baseline to compare against. Use simple local
+Start with Talos' default Flannel CNI as a known-good baseline. Establish GitOps
+while Flannel is healthy, then test Cilium in a disposable rebuild before adding
+Tailscale and other platform services. Keep the first Cilium pass with kube-proxy
+enabled; treat kube-proxy replacement as a separate experiment. Use simple local
 storage for disposable workloads initially; distributed storage is a separate
 project and is likely to consume more of these four-core systems than it teaches
 in the first iteration.
@@ -113,9 +115,10 @@ The durable source should eventually have this shape:
 │   │       ├── rudtal-worker-1.yaml
 │   │       └── rudtal-worker-2.yaml
 │   └── secrets.sops.yaml
-├── kubernetes/
-│   ├── tailscale/
-│   └── apps/
+├── clusters/
+│   └── rudtal/               # Flux sync root and cluster-specific Kustomization
+├── infrastructure/           # Cilium, Tailscale and other platform releases
+├── apps/                      # disposable application workloads
 ├── scripts/
 │   ├── render.sh
 │   ├── validate.sh
@@ -190,7 +193,32 @@ and fixes as patches or runbook changes rather than editing rendered YAML.
 Exit criterion: all three nodes are Ready, a disposable workload is reachable on
 the LAN, and the observed effect of stopping the control-plane node is documented.
 
-### 4. Add Tailscale with least privilege
+### 4. Establish declarative Kubernetes management
+
+Separate Talos machine configuration from Kubernetes add-on configuration. Use
+Flux as the declarative control plane for the latter: bootstrap it once against
+the healthy Flannel cluster, then manage its repositories, Kustomizations,
+HelmReleases and encrypted Kubernetes secrets from Git. Record the bootstrap
+credentials and the small imperative exception needed to install the first
+networking layer before pods can run.
+
+Exit criterion: a harmless Git-managed resource is reconciled, drift is repaired,
+versions are pinned, and the repository clearly identifies Talos-owned versus
+Kubernetes-owned state.
+
+### 5. Replace Flannel with Cilium in a disposable rebuild
+
+Create a branch or tag that preserves the Flannel baseline. Re-render Talos with
+the CNI disabled, install a pinned Cilium chart with Talos-compatible settings,
+and verify pod, service, DNS, NodePort and policy behavior. Keep kube-proxy for
+the first pass; only after that works should a separate branch test Cilium's
+kube-proxy replacement. If Flux cannot start before pod networking exists,
+document the one-time Cilium bootstrap and hand ownership to Flux immediately.
+
+Exit criterion: the Cilium branch is reproducible from Git, or it is discarded
+cleanly with the Flannel baseline restored.
+
+### 6. Add Tailscale with least privilege
 
 Create dedicated tailnet tags for the operator and lab services. Create a separate
 OAuth client for this cluster with only the scopes required by the operator, store
@@ -206,17 +234,17 @@ recovery is desired.
 Exit criterion: no router port forward exists, a named tailnet identity can reach
 the test service and Kubernetes API, and an unauthorized identity cannot.
 
-### 5. Add cluster services gradually
+### 7. Add cluster services gradually
 
 Add one component at a time with a validation checkpoint: a load-balancer address
-pool, ingress or Gateway API, a simple local storage provisioner, metrics, then an
-optional GitOps controller. Keep test workloads stateless until backup and restore
+  pool, ingress or Gateway API, a simple local storage provisioner and metrics. Keep
+  test workloads stateless until backup and restore
 are a deliberate learning objective.
 
 Exit criterion: each component has a pinned version, a Git-managed manifest or
 release definition, and a documented removal path.
 
-### 6. Prove rebuildability
+### 8. Prove rebuildability
 
 Export no state from the running cluster. Destroy it, re-enter maintenance mode,
 render configuration from the repository, reinstall all three nodes, and restore
@@ -226,27 +254,7 @@ memory or guesswork was required.
 Exit criterion: a clean rebuild succeeds using Git plus the external age identity,
 and rotating to a brand-new cluster identity is also documented.
 
-### 7. Virtualization and Cluster API experiment
-
-Treat this as a branch after the direct Talos rebuild works. First learn Cluster
-API using a disposable management cluster and a virtual infrastructure provider.
-Cluster API always needs an existing management cluster plus an infrastructure
-provider; the Talos bootstrap and control-plane providers do not provision hardware
-on their own.
-
-For the physical lab, the realistic virtualization route is Proxmox VE on the
-three hosts, Talos inside VMs, and CAPMOX as the infrastructure provider. This adds
-useful VM lifecycle automation and makes clusters cheap to recreate, but it also
-adds Proxmox networking, templates, credentials, a management cluster, and another
-failure domain. Current CAPMOX/CAPI v1beta2 support is newer than the stable Talos
-provider path, so pinning a compatible version set needs its own experiment.
-
-Direct bare-metal Cluster API is not the first choice for these mini PCs. Sidero
-Metal is now community-maintained, and consumer systems lack the BMC/IPMI lifecycle
-control expected by many bare-metal providers. Omni is worth evaluating later if
-its managed Talos lifecycle is itself part of the lesson.
-
-### 8. Prove credential recovery through 1Password
+### 9. Prove credential recovery through 1Password
 
 Store the dedicated SOPS age identity in a purpose-specific 1Password item and
 test recovery from a second trusted machine. Prefer the SOPS

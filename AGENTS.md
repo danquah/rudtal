@@ -58,11 +58,11 @@ Safety rules:
 - Bootstrap etcd exactly once, in session S03.
 - Use `downloads/talosctl-v1.12.12-darwin-arm64` for the pinned v1.12.12 cluster;
   the global binary is older.
-- Verify changing versions and Cluster API compatibility against primary upstream
+- Verify changing platform versions and compatibility against primary upstream
   documentation and record the date.
 - Preserve user edits and never rewrite Git history to clean a credential leak;
   rotate the affected credential or cluster identity.
-- When implementing S09, use the 1Password UI for entering the private age
+- When implementing S10, use the 1Password UI for entering the private age
   identity. Never print `op read` output. Prefer `SOPS_AGE_KEY_CMD` and use
   `op read --out-file ... --file-mode 0600` only for the documented fallback.
 

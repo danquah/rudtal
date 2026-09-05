@@ -29,10 +29,11 @@ At the start of every session, tell the agent:
 | `S03` | Why etcd bootstrap happens once, etcd quorum, static control-plane pods, kubeconfig versus talosconfig, CNI startup and scheduling |
 | `S04A/B` | Worker trust and joining, node identity, DHCP reservations, kubelet registration, certificates and node readiness |
 | `S05` | Control plane versus data plane, desired state and reconciliation, workload controllers, service routing and failure behavior |
-| `S06` | Tailnet identity, Kubernetes authentication and RBAC, operator credentials, tags/grants, service exposure and recovery access |
-| `S07` | Declarative rebuilds, cluster identity versus workload state, credential rotation, reset scope and recovery testing |
-| `S08` | Management versus workload clusters, Cluster API reconciliation, infrastructure/bootstrap/control-plane providers and virtualization trade-offs |
-| `S09` | 1Password secret references, SOPS key sources, cross-machine recovery, credential exposure boundaries and recovery verification |
+| `S06` | GitOps reconciliation, Talos versus Kubernetes ownership, HelmRelease/Kustomization, bootstrap exceptions, Git credentials and encrypted Kubernetes secrets |
+| `S07` | CNI replacement, Cilium datapath, kube-proxy choices, Talos machine configuration, Helm values, network policy and rollback |
+| `S08` | Tailnet identity, Kubernetes authentication and RBAC, operator credentials, tags/grants, service exposure and recovery access |
+| `S09` | Declarative rebuilds, cluster identity versus workload state, credential rotation, reset scope and recovery testing |
+| `S10` | 1Password secret references, SOPS key sources, cross-machine recovery, credential exposure boundaries and recovery verification |
 
 ## S00: finish control-plane discovery
 
@@ -146,7 +147,75 @@ Work:
 Stop condition: baseline and failure observations are in Git and the cluster is
 healthy again.
 
-## S06: Tailscale
+## S06: declarative Kubernetes add-on management
+
+Goal: establish a Git-controlled boundary for Kubernetes resources outside the
+Talos machine configuration before installing Cilium or Tailscale.
+
+Work:
+
+1. Decide and document the repository layout for Kubernetes declarations, for
+   example `clusters/rudtal/`, `infrastructure/` and `apps/`. Explain which state
+   remains in `talos/` and which state belongs to Kubernetes.
+2. Choose a GitOps controller after comparing current workflows. Flux is the
+   recommended first experiment because its bootstrap creates the controllers and
+   Git sync resources, after which Git changes can drive cluster operations. Pin
+   the chosen controller versions.
+3. Define the bootstrap exception: an operator with cluster-admin and Git push
+   access performs the initial Flux bootstrap. Thereafter use Git-managed
+   Kustomizations and HelmReleases; document emergency breaks from that rule.
+4. Install Flux against the running Flannel cluster, using a narrowly scoped
+   deploy key or equivalent Git credential. Keep that credential encrypted and
+   out of normal manifests.
+5. Commit one harmless, disposable test resource and reconcile it from Git. Prove
+   drift correction by changing the live object and observing Git restore it.
+6. Define rules for Helm chart versions, image digests where practical, values,
+   SOPS-encrypted Kubernetes Secrets and dependency ordering. Treat HelmRelease
+   and Kustomization status as administrative evidence.
+
+Stop condition: Flux is healthy and demonstrably reconciling one disposable
+resource from Git; the repository layout, bootstrap credential boundary and
+rollback procedure are documented. Do not install Tailscale or Cilium in S06.
+
+## S07: Cilium rebuild experiment
+
+Goal: replace Flannel with Cilium in a disposable rebuild, while learning how a
+cluster-wide CNI change interacts with Talos configuration and Git-managed add-ons.
+
+Keep the current Flannel cluster as the known-good baseline. Use a Git branch or
+tag for this experiment and do not attempt an unplanned in-place CNI swap.
+
+Work:
+
+1. Read the current Talos and Cilium compatibility guidance and pin a Cilium
+   version. Record whether the first pass keeps kube-proxy or enables Cilium's
+   kube-proxy replacement. Start with kube-proxy retained for a smaller change;
+   make kube-proxy replacement a separate measured sub-experiment.
+2. Add a Talos patch for `cluster.network.cni.name: none` and, only if the chosen
+   kube-proxy-free mode requires it, `cluster.proxy.disabled: true`. Explain why
+   Cilium's Talos guidance changes these machine-level settings.
+3. Add Cilium's HelmRepository/HelmRelease or equivalent pinned declarations to
+   the GitOps tree. Record Talos-specific settings, including removal of
+   `SYS_MODULE`, reuse of Talos-provided cgroupv2/bpffs mounts, Kubernetes IPAM,
+   and API endpoint settings required by the selected kube-proxy mode.
+4. Rebuild the disposable cluster from the Cilium branch. Treat the initial
+   Cilium installation as a documented bootstrap exception if Flux cannot run
+   before pod networking exists; hand management to Flux as soon as Cilium is
+   healthy and test whether the existing release can be adopted cleanly.
+5. Verify Cilium agents and operator on every node, pod-to-pod and pod-to-service
+   connectivity, DNS, NodePort behavior and a simple CiliumNetworkPolicy. Record
+   the difference between Talos host networking, CNI pod networking and eBPF
+   service handling.
+6. If kube-proxy replacement is selected later, measure service behavior before
+   and after, verify the API endpoint through the documented KubePrism or other
+   host path, and record the rollback path. Never remove kube-proxy until that
+   path is proven.
+
+Stop condition: the Cilium branch is either healthy and reproducible from Git, or
+has been cleanly discarded with the Flannel baseline restored. The test includes a
+documented rollback and no untracked imperative resources.
+
+## S08: Tailscale with declarative add-on management
 
 Goal: provide narrowly scoped tailnet access without public router forwarding.
 
@@ -163,7 +232,7 @@ Work:
 Stop condition: remote access works through Tailscale, denied access is tested,
 and no public port forward exists.
 
-## S07: teardown and rebuild proof
+## S09: teardown and rebuild proof
 
 Goal: show that Git plus the external age identity is sufficient to rebuild the
 lab.
@@ -181,20 +250,9 @@ Work:
 Stop condition: a clean rebuild succeeds and its procedure is usable without chat
 history.
 
-## S08: virtualization and Cluster API branch
+## S10: final 1Password and cross-machine recovery drill
 
-Start this only after S07. Use one planning session to compare a local QEMU
-management cluster with Proxmox plus CAPMOX on the physical hosts. Verify current
-compatibility from primary project documentation at that time. Keep this work on a
-Git branch because installing Proxmox replaces the direct bare-metal Talos design.
-
-Stop condition for the planning session: a version compatibility matrix, network
-and storage design, credential model, migration path and explicit go/no-go decision
-exist. Implementation should then be split into its own sessions.
-
-## S09: final 1Password and cross-machine recovery drill
-
-Run this after S07 and after any optional S08 implementation. The detailed design
+Run this after S09. The detailed design
 and command patterns live in `ONEPASSWORD_RECOVERY.md`.
 
 Goal: prove that Git plus access to the correct 1Password item is enough to recover

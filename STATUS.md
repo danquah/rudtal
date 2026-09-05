@@ -40,6 +40,8 @@ Tailscale remains untouched.
 - Worker Talos verification: v1.12.12, RBAC enabled, system disk `nvme0n1`, kubelet `Running`/`OK`
 - Etcd bootstrapped: yes, exactly once in S03
 - Kubernetes cluster running: yes; Kubernetes `v1.35.8`, Flannel CNI
+- Kubernetes add-ons: no Flux, Cilium or Tailscale installed; Flannel is the
+  known-good baseline for the upcoming declarative-management work.
 - Control-plane scheduling: enabled; no taints or unschedulable flag observed
 - S05 baseline before workload: Talos `get cpustats` cumulative user/system and
   `get memorystats` used/total (reported KiB) were `rudtal-cp-1` `178/528.83`,
@@ -82,7 +84,7 @@ Tailscale remains untouched.
 - Workload cleanup/recovery: `KUBECONFIG=state/kubeconfig kubectl delete pod
   s03-smoke --ignore-not-found`; server dry-run was verified without deleting it.
 - Recovery boundary: do not rerun bootstrap; use the deliberate Talos reset and
-  rebuild procedure in S07 if the single-node cluster must be recreated.
+  rebuild procedure in S09 if the single-node cluster must be recreated.
 
 ## S04A discovery record
 
@@ -156,8 +158,9 @@ Tailscale remains untouched.
 
 ## Next action
 
-Begin S06 design for Tailscale identity, access controls and recovery boundaries.
-Do not install the Tailscale operator or expose remote access before that design.
+Begin S06 design for declarative Kubernetes add-on management. Establish the
+Talos-versus-Kubernetes ownership boundary and bootstrap Flux against the healthy
+Flannel cluster. Do not install Cilium or Tailscale before that design is recorded.
 
 ## Known decisions
 
@@ -167,16 +170,16 @@ Do not install the Tailscale operator or expose remote access before that design
 - Initial storage: disposable node-local storage.
 - Secret plan: private Git repository with SOPS-encrypted Talos secrets; dedicated
   age private identity outside Git and backed up in a password manager.
-- Tailscale and Cluster API are later sessions, after the basic cluster and one
-  rebuild are understood.
-- Final recovery session: S09 will store the SOPS age identity in 1Password and
+- GitOps is introduced while Flannel is healthy; Cilium is tested in a disposable
+  rebuild before Tailscale is added.
+- Final recovery session: S10 will store the SOPS age identity in 1Password and
   prove decryption and configuration rendering from a second trusted machine.
 
 ## Open items
 
 - Confirm LAN CIDR, gateway, DHCP pool, DNS and NTP.
 - Record JetKVM authentication, firmware and Tailscale state.
-- Complete the final 1Password cross-machine recovery drill in S09.
+- Complete the final 1Password cross-machine recovery drill in S10.
 
 ## Session log
 
@@ -189,10 +192,11 @@ Do not install the Tailscale operator or expose remote access before that design
 | `S04A` | Complete | Installed `rudtal-worker-1` on its approved 512 GB NVMe; removed boot media; verified authenticated Talos and Kubernetes `Ready` |
 | `S04B` | Complete | Installed `rudtal-worker-2` on its approved 512 GB NVMe; removed boot media; verified authenticated Talos and Kubernetes `Ready` |
 | `S05` | Complete | Recorded Talos/Kubernetes baseline; deployed and cleaned up a LAN NodePort workload; rebooted and recovered only the control plane; documented worker continuity and reconciliation |
-| `S06` | Not started | Tailscale operator and access controls |
-| `S07` | Not started | Full teardown and reproducible rebuild |
-| `S08` | Deferred | Virtualization and Cluster API experiment |
-| `S09` | Not started | 1Password-backed SOPS recovery from a second machine |
+| `S06` | Not started | Flux GitOps foundation and ownership boundary |
+| `S07` | Not started | Cilium disposable rebuild experiment |
+| `S08` | Not started | Tailscale operator and access controls |
+| `S09` | Not started | Full teardown and reproducible rebuild |
+| `S10` | Not started | 1Password-backed SOPS recovery from a second machine |
 
 ## Local tooling
 
