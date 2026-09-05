@@ -34,7 +34,8 @@ virtual media unmounted. No other node or Tailscale configuration was touched.
 - Worker internal target: `/dev/nvme0n1`, TWSC TSC3AN512E6-F2T60S, 512 GB; wipe approved and completed
 - Worker hardware observed: Intel N150, 4 cores, 16 GB RAM, wired interface `enp3s0`
 - Worker firmware: Talos SMBIOS data reported `Default string`; firmware version unavailable
-- Talos config applied: yes to `rudtal-cp-1` and `rudtal-worker-1`
+- Talos config applied: yes to `rudtal-cp-1`, `rudtal-worker-1` and
+  `rudtal-worker-2`
 - Worker Talos verification: v1.12.12, RBAC enabled, system disk `nvme0n1`, kubelet `Running`/`OK`
 - Etcd bootstrapped: yes, exactly once in S03
 - Kubernetes cluster running: yes; Kubernetes `v1.35.8`, Flannel CNI
