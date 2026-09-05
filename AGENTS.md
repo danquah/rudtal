@@ -13,6 +13,37 @@ credential or changes a Tailscale account, explain the command, its expected
 effect and the recovery path. Perform read-only discovery and local reversible
 repository work directly.
 
+## Teaching protocol
+
+Treat explanation as part of the work, not as an optional final summary. Use plain
+language and connect every command to the Talos or Kubernetes component it
+affects. Do not paste unexplained command output.
+
+Before a meaningful administrative action, briefly explain:
+
+1. the goal and which layer is involved: firmware/boot, Talos machine API, etcd,
+   Kubernetes control plane, node, workload, networking or credentials;
+2. what the command and its important flags mean;
+3. what durable or runtime state it will change;
+4. what success should look like and how recovery works if it fails.
+
+After the action, compare the observed result with the expectation. Point out the
+one or two output fields that establish the conclusion. Distinguish operations
+that are safe to repeat from one-time or destructive operations.
+
+At the end of every session, add a concise entry to `LEARNING_LOG.md` covering:
+
+- the mental model and new concepts;
+- what was changed and where that state lives;
+- the administrative commands used and when they are useful again;
+- verification and recovery steps;
+- one small optional exercise the operator can perform to reinforce the lesson.
+
+Keep explanations proportional. Routine repeated checks can refer back to an
+earlier entry, while new trust, storage, networking and lifecycle operations need
+full explanations. Never include secret values or credential-bearing output in a
+lesson.
+
 Safety rules:
 
 - Never read, display, commit or reuse credential-bearing files in `rudtal01/`.
@@ -33,4 +64,5 @@ Safety rules:
   rotate the affected credential or cluster identity.
 
 At session end, follow the protocol in `SESSION_PLAN.md`. A session is incomplete
-until the handoff records the actual physical and repository state.
+until the handoff records the actual physical and repository state and the
+learning log explains what the operator did and learned.
