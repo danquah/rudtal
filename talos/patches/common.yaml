@@ -1,0 +1,6 @@
+# Network addressing comes from the router; do not add static node addresses here.
+
+cluster:
+  network:
+    cni:
+      name: flannel

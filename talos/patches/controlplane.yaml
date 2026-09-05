@@ -1,0 +1,3 @@
+# The single control-plane node is intentionally schedulable for this lab.
+cluster:
+  allowSchedulingOnControlPlanes: true

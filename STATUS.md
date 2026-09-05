@@ -7,12 +7,13 @@ here.
 
 ## Current checkpoint
 
-The N100 control-plane candidate is running Talos v1.12.12 in maintenance mode at
-its confirmed reserved address. No machine configuration has been applied and no
-internal SSD has been erased.
+The repository now contains the S01 encrypted Talos configuration pipeline:
+version pins, SOPS policy, patch inputs, render and validation scripts, and a
+fresh SOPS-encrypted Talos secrets bundle. No machine configuration has been
+applied and no internal SSD has been erased.
 
 - Date recorded: 2026-09-05
-- Current session: `S00` media and N100 discovery, complete
+- Current session: `S01` repository and encrypted configuration pipeline, complete
 - Active physical node: proposed `rudtal-cp-1`
 - Current maintenance address: `192.168.1.121`
 - Earlier discovery address: `192.168.1.12`
@@ -36,18 +37,19 @@ internal SSD has been erased.
 - SOPS: 3.13.3 installed
 - age: 1.3.2 installed
 - age directory: `~/.config/sops/age/` exists
-- dedicated age identity: **not generated yet**
-- Git: initialized on `main`; documentation baseline committed
+- dedicated age identity: generated at `~/.config/sops/age/rudtal.txt`, mode 0600; recovery copy confirmed in the password manager
+- Initial local render was discarded; the Talos secrets bundle was rotated before final validation, and no rendered or plaintext secret file is retained in Git.
+- Git: initialized on `main`; S01 pipeline committed
 
 The globally installed `talosctl` is v1.11.1. Use the exact v1.12.12 binary above
 until a later session deliberately changes the tool setup.
 
 ## Next action
 
-Start `S01`: create and back up the external age identity, then build the encrypted
-Talos configuration pipeline described in `SESSION_PLAN.md`. This is local
-repository work; do not apply configuration to the node during S01. The N100 can
-remain in maintenance mode at `192.168.1.121`.
+Start `S02`: decrypt only into ignored temporary storage, render and review the
+control-plane configuration, validate it with the pinned client, then re-query
+the N100 at `192.168.1.121` and match its MAC and install disk before any apply.
+Do not bootstrap etcd in S02.
 
 ## Known decisions
 
@@ -62,8 +64,7 @@ remain in maintenance mode at `192.168.1.121`.
 
 ## Open items
 
-- Choose and record Git remote/visibility; private is recommended.
-- Generate and back up the age identity.
+- Review the rendered control-plane configuration in S02 without committing it.
 - Inventory both N150 nodes and approve their exact install disks.
 - Confirm reservations for `192.168.1.122` and `192.168.1.123`.
 - Confirm LAN CIDR, gateway, DHCP pool, DNS and NTP.
@@ -74,7 +75,7 @@ remain in maintenance mode at `192.168.1.121`.
 | Session | State | Result |
 |---|---|---|
 | `S00` | Complete | Media verified; N100 and reserved `.121` address verified in maintenance mode |
-| `S01` | Not started | Repository and encrypted configuration pipeline |
+| `S01` | Complete | Age recovery copy confirmed; encrypted Talos inputs, patches, render/validate scripts, and clean local control-plane validation |
 | `S02` | Not started | Render, review and install the control plane |
 | `S03` | Not started | Bootstrap and verify the single-node cluster |
 | `S04A` | Not started | Inventory and install worker 1 |

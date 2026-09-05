@@ -1,0 +1,12 @@
+apiVersion: v1alpha1
+kind: HostnameConfig
+hostname: rudtal-cp-1
+auto: off
+---
+machine:
+  network:
+    interfaces:
+      - interface: enp3s0
+        dhcp: true
+  install:
+    disk: /dev/nvme0n1

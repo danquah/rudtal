@@ -1,0 +1,3 @@
+# Workers do not host control-plane workloads.
+cluster:
+  allowSchedulingOnControlPlanes: false
