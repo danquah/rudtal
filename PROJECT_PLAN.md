@@ -246,6 +246,24 @@ Metal is now community-maintained, and consumer systems lack the BMC/IPMI lifecy
 control expected by many bare-metal providers. Omni is worth evaluating later if
 its managed Talos lifecycle is itself part of the lesson.
 
+### 8. Prove credential recovery through 1Password
+
+Store the dedicated SOPS age identity in a purpose-specific 1Password item and
+test recovery from a second trusted machine. Prefer the SOPS
+`SOPS_AGE_KEY_CMD` interface with a repository helper that invokes `op read`, so
+the private identity flows directly to SOPS instead of being permanently restored
+to the filesystem. Retain a documented `op read --out-file` fallback with mode
+0600 for environments where command-based integration is unavailable.
+
+Do not back up generated `talosconfig` or `kubeconfig` as the primary recovery
+mechanism. Reproduce `talosconfig` from the encrypted Talos identity and retrieve a
+fresh kubeconfig from the cluster. The recovery test must use the private Git
+repository plus 1Password from a machine that has no existing Rudtal age key.
+
+Exit criterion: the cross-machine procedure decrypt-tests without displaying
+plaintext, renders a valid ignored configuration, documents rotation and lost
+access, and fails as expected when 1Password access is removed.
+
 ## Decisions to confirm before implementation
 
 1. Confirm the inventory is two N150 machines plus one N100 machine, and provide

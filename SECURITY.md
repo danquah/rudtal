@@ -12,6 +12,7 @@ administrator access to machines, Kubernetes, and the Tailscale account.
 | `talosconfig` | Talos API client identity and roles | Keep outside Git; issue separate, shorter-lived client certificates |
 | `kubeconfig` | Kubernetes API client identity | Keep outside Git; regenerate and rotate as needed |
 | SOPS age identity | Decrypts every secret encrypted to it | Keep outside Git and back up in a password manager |
+| 1Password secret reference | Locates the age identity but does not itself contain it | Supply locally; keep account, vault and item names out of public Git |
 | Tailscale OAuth secret | Lets the operator create or manage tagged tailnet devices | Give minimal scopes; store only in a SOPS-encrypted Kubernetes Secret |
 | JetKVM | Full keyboard, console and virtual boot-media control over an attached node | Require a local password, a dedicated Tailscale tag and narrowly scoped tailnet access |
 
@@ -36,3 +37,23 @@ bundle and rebuild the lab. Revoke and replace any exposed Tailscale credential.
 The files under `rudtal01/` were generated for the stranded cluster and include
 private keys and tokens. They are explicitly ignored. Do not use them for the new
 cluster, and do not initialize or publish a Git history that includes them.
+
+## 1Password recovery boundary
+
+SOPS does not list 1Password as a native key backend. It does support
+`SOPS_AGE_KEY_CMD`, which runs a command whose output supplies the age identity.
+The preferred integration is therefore a small helper that calls `op read` using a
+locally supplied 1Password secret reference. The command and environment contain
+only the reference; the private identity travels through process output directly
+to SOPS and is never printed by project scripts.
+
+Store only the dedicated Rudtal age identity in the 1Password item. Generated
+machine configs, `talosconfig` and `kubeconfig` remain derived, short-lived local
+artifacts. A file-based recovery is permitted when necessary using `op read
+--out-file` with mode 0600, but the guide must state whether that restored file is
+the trusted machine's durable identity or a temporary file that should be removed.
+
+Never enable shell tracing around `op read`, place the private identity in a
+command-line argument, command substitution or tracked environment file, or use a
+pipeline that displays it. Test recovery with decryption output directed to
+`/dev/null` and compare only the derived public recipient.

@@ -62,6 +62,9 @@ Safety rules:
   documentation and record the date.
 - Preserve user edits and never rewrite Git history to clean a credential leak;
   rotate the affected credential or cluster identity.
+- When implementing S09, use the 1Password UI for entering the private age
+  identity. Never print `op read` output. Prefer `SOPS_AGE_KEY_CMD` and use
+  `op read --out-file ... --file-mode 0600` only for the documented fallback.
 
 At session end, follow the protocol in `SESSION_PLAN.md`. A session is incomplete
 until the handoff records the actual physical and repository state and the

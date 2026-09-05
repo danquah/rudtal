@@ -32,6 +32,7 @@ At the start of every session, tell the agent:
 | `S06` | Tailnet identity, Kubernetes authentication and RBAC, operator credentials, tags/grants, service exposure and recovery access |
 | `S07` | Declarative rebuilds, cluster identity versus workload state, credential rotation, reset scope and recovery testing |
 | `S08` | Management versus workload clusters, Cluster API reconciliation, infrastructure/bootstrap/control-plane providers and virtualization trade-offs |
+| `S09` | 1Password secret references, SOPS key sources, cross-machine recovery, credential exposure boundaries and recovery verification |
 
 ## S00: finish control-plane discovery
 
@@ -190,6 +191,49 @@ Git branch because installing Proxmox replaces the direct bare-metal Talos desig
 Stop condition for the planning session: a version compatibility matrix, network
 and storage design, credential model, migration path and explicit go/no-go decision
 exist. Implementation should then be split into its own sessions.
+
+## S09: final 1Password and cross-machine recovery drill
+
+Run this after S07 and after any optional S08 implementation. The detailed design
+and command patterns live in `ONEPASSWORD_RECOVERY.md`.
+
+Goal: prove that Git plus access to the correct 1Password item is enough to recover
+the SOPS decryption capability on another trusted machine without copying
+`talosconfig`, `kubeconfig` or plaintext Talos secrets between machines.
+
+Work:
+
+1. In the 1Password UI, create a dedicated item whose concealed field contains
+   the Rudtal age private-identity line. Record its public recipient, creation date,
+   purpose and rotation instructions in non-secret fields. Do not enter the
+   private identity through shell history or display it during verification.
+2. Install and authenticate the 1Password CLI on a second trusted machine. Clone
+   the private Git repository and install the pinned or documented versions of
+   SOPS, age and `talosctl`. Document the separate Git authentication prerequisite;
+   the age identity does not grant repository access.
+3. Add a small repository script that returns the age identity with `op read` from
+   a secret reference supplied locally through `RUDTAL_AGE_OP_REF`. Configure SOPS
+   through `SOPS_AGE_KEY_CMD`, so the age identity passes directly from the
+   1Password CLI to SOPS and is not persistently written to disk.
+4. Update `render.sh` and `validate.sh` to accept either the existing
+   `SOPS_AGE_KEY_FILE` recovery path or `SOPS_AGE_KEY_CMD`. Keep the 1Password
+   vault/item reference outside tracked files; commit only a placeholder example.
+5. Derive and compare only the public age recipient with `.sops.yaml`. Validate
+   decryption to `/dev/null`, then render and validate the control-plane config in
+   ignored storage. Do not display decrypted YAML or apply it to a node.
+6. Test the documented fallback: use `op read --out-file ... --file-mode 0600` to
+   restore the age identity when command-based integration is unavailable, verify
+   decryption, and securely remove that temporary local copy if it is not intended
+   to remain on the trusted machine.
+7. Write the exact setup, recovery, verification, rotation and lost-access
+   procedure in `ONEPASSWORD_RECOVERY.md`. Record which 1Password account and
+   vault are required without committing account identifiers or vault/item names.
+
+Stop condition: a second machine with no pre-existing Rudtal age identity can
+decrypt-test `talos/secrets.sops.yaml` without emitting plaintext, render a valid
+ignored machine config, and explain how `talosconfig` and `kubeconfig` can be
+recreated. The test must also prove that removing 1Password access makes
+decryption fail.
 
 ## End-of-session protocol
 
