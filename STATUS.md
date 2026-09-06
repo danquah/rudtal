@@ -7,12 +7,11 @@ here.
 
 ## Current checkpoint
 
-The N100 control-plane node runs the reviewed S02 configuration from its
-internal SSD and hosts the current Kubernetes cluster. Etcd was bootstrapped
-exactly once for the initial cluster generation in S03. S06 established
-Flux-based declarative add-on management while preserving the healthy Flannel
-baseline. S07A prepared an isolated Cilium rebuild experiment without changing
-the live cluster.
+The fresh S07B cluster generation is installed on the approved internal NVMe
+disks, uses Cilium `1.20.1` as its CNI, and has a sole control plane plus two
+workers. Etcd was bootstrapped exactly once for this fresh generation. Flux
+reconciles the promoted `main` source; the former Flannel baseline and
+experiment branch have been retired.
 
 The installation half of S04A is complete for `rudtal-worker-1`. The N150 was
 installed from the reviewed worker configuration onto its approved internal
@@ -27,35 +26,40 @@ virtual media unmounted. S05 changed no configuration, storage or boot media;
 Tailscale remains untouched.
 
 - Date recorded: 2026-09-06
-- Current session: `S07B` P2 paused after the singleton control-plane reset was corrected
-- Destructive scope: the operator authorized the documented disposal and was
-  present at JetKVM; the two worker resets were performed.
-- `rudtal-worker-1` at `192.168.1.122`: graceful reset completed; insecure
-  maintenance resource reads matched wired MAC `e0:51:d8:1a:80:37` and the
-  writable 512 GB TWSC `nvme0n1`.
-- `rudtal-worker-2` at `192.168.1.123`: graceful reset completed; insecure
-  maintenance resource reads matched wired MAC `e0:51:d8:1a:83:85` and the
-  writable 512 GB TWSC `nvme0n1`. Its empty, read-only `sr0` was not used.
-- `rudtal-cp-1` at `192.168.1.121`: its authenticated identity matched wired
-  MAC `e0:51:d8:12:d2:66` and the writable 256 GB AirDisk `nvme0n1` before
-  reset.
-- The reviewed graceful control-plane reset returned a nonzero `leaveEtcd`
-  error because the one-member etcd cluster cannot remove its only started
-  member. It must be treated as a failed checkpoint, not retried automatically.
-- After the failed command, the control plane again required mTLS and answered
-  with Talos v1.12.12/RBAC; its `etcd` service reported `Running`/`OK`. This
-  unexpected persistent installed control-plane state halted S07B immediately.
-- No reviewed configuration was applied after reset. No new etcd generation,
-  Cilium release, Flux bootstrap/credential, networking test, Git promotion,
-  or deploy-key rotation was performed.
-- Fresh Cilium-patched configs passed strict validation, then their ignored
-  `generated/` directory was removed when the physical procedure halted.
-- Existing `state/kubeconfig` remains ignored and was not displayed. It must
-  not be assumed valid for a later fresh generation.
-- Recovery boundary: do not attempt an in-place CNI change or restore the old
-  workers. Primary Talos v1.12 guidance confirms that a single-member etcd
-  control plane must use `reset --graceful=false`; the runbook now records that
-  topology-specific procedure.
+- Current session: `S07B` complete — Cilium rebuild, GitOps handover, testing,
+  promotion, and credential rotation passed.
+- Fresh cluster generation: `rudtal-cp-1`, `rudtal-worker-1`, and
+  `rudtal-worker-2` are `Ready` on Talos `v1.12.12` and Kubernetes `v1.35.8`.
+- Hardware identity before the destructive boundary and again in maintenance
+  mode matched the approved wired MACs and internal NVMe disks: the 256 GB
+  AirDisk `nvme0n1` control plane and both 512 GB TWSC `nvme0n1` workers.
+- The corrected singleton control-plane
+  `reset --graceful=false --system-labels-to-wipe EPHEMERAL
+  --system-labels-to-wipe STATE --reboot` completed; workers were not reset a
+  second time. Fresh reviewed Talos configs applied successfully.
+- Etcd was bootstrapped exactly once at `192.168.1.121`. Before Cilium, only
+  etcd, apid, and Kubernetes `/readyz` were checked; all nodes were then
+  expectedly restored to Ready by Cilium.
+- Cilium `1.20.1` is Helm release `kube-system/cilium` revision 2, adopted by
+  a Ready Flux HelmRelease from the pinned OCI manifest
+  `sha256:906ce40d35daad838d12add8a5ba7033e767767f51799a93c7eace2cec9cdc05`.
+  Three Cilium agents, three Envoy Pods, two operators, CoreDNS, and retained
+  kube-proxy were Running; full authenticated Talos health passed.
+- Flux source, all five Kustomizations, the Cilium OCIRepository, and the
+  Cilium HelmRelease are Ready at observed `main@sha1:f07fd5e7`.
+- Cross-worker Pod-IP and ClusterIP traffic, cluster DNS, and NodePort `30600`
+  through all three LAN node addresses passed. The namespaced policy allowed
+  the selected client and timed out the blocked client; `s07-nettest` was
+  deleted afterward.
+- `main` was promoted and the source handoff commit was applied to both
+  branches before Flux changed to `main`. The remote and local
+  `experiment/cilium-s07` branch are deleted.
+- The temporary write-capable bootstrap deploy key was retired only after the
+  replacement read-only deploy key fetched `main` and stayed Ready through a
+  source interval. The cluster-only Flux Secret was never displayed.
+- Rendered Talos outputs, temporary Cosign/chart files, test manifests, and
+  both local deploy-key pairs were removed. `state/kubeconfig` remains ignored
+  for routine local administration and was not displayed.
 - S05 baseline before workload: Talos `get cpustats` cumulative user/system and
   `get memorystats` used/total (reported KiB) were `rudtal-cp-1` `178/528.83`,
   `1,928,672/16,057,704`; `rudtal-worker-1` `79.53/70.97`,
@@ -308,22 +312,50 @@ authorize a destructive action.
   applies fresh reviewed configs to all three nodes and bootstraps the new etcd
   generation exactly once.
 
+## S07B P2 completion record
+
+- The singleton control-plane recovery used the reviewed
+  `--graceful=false` reset. Its completed reset sequence reached maintenance
+  mode with the matched AirDisk NVMe; no worker reset was repeated.
+- Fresh Cilium no-CNI configs for all three nodes passed strict metal
+  validation and applied successfully. The new control plane bootstrapped etcd
+  once; authenticated etcd/APId checks and Kubernetes `/readyz` passed before
+  Cilium installation.
+- Helm v3.19.0 pulled the exact Cilium `1.20.1` manifest and archive layer.
+  A temporary Cosign v3.1.3 Darwin arm64 binary matched its official SHA-256,
+  then verified the Cilium GitHub identity, GitHub Actions issuer, trusted
+  certificate, and offline transparency-log inclusion for that manifest.
+- Imperative Helm installation created `kube-system/cilium` revision 1. Flux
+  adopted it with successful Helm upgrade revision 2; the OCIRepository,
+  HelmRelease, all Flux Kustomizations, Cilium DaemonSet, nodes, and full
+  Talos health remained Ready.
+- The disposable cross-node test placed server and clients on the required
+  distinct workers. Direct Pod IP, ClusterIP, DNS, and three-node NodePort
+  paths passed; the CiliumNetworkPolicy allowed only the labelled client and
+  blocked the other client by timeout. Namespace deletion completed.
+- After a ten-minute stable reconciliation interval, `main` was promoted and
+  Flux changed from `experiment/cilium-s07` to `main@sha1:f07fd5e7`. The
+  replacement read-only deploy key fetched that revision and remained Ready
+  through another source interval before the old write key and experiment
+  branch were removed.
+
+
 
 
 
 ## Next action
 
-Resume S07B P2 from the documented mixed-state branch in Checkpoint 4. Freshly
-render and validate the three configs, repeat the hardware identity checks, and
-do not reset the workers again. Reset only `rudtal-cp-1` with
-`--graceful=false`, verify all three machines are in maintenance mode, then
-continue with configuration apply, exactly one bootstrap, Cilium and Flux.
+S07B is complete. Begin S08 only after reviewing JetKVM local authentication,
+firmware, and Tailscale access policy; do not expose a public port or reuse the
+retired bootstrap deploy credential. Routine Cilium/Flux health checks use the
+current `main` source and ignored local kubeconfig.
 
 ## Known decisions
 
 - Topology: one schedulable N100 control plane and two N150 workers.
 - Initial API endpoint: `https://192.168.1.121:6443`.
-- Initial networking: router DHCP reservations plus Talos DHCP, Flannel CNI.
+- Current networking: router DHCP reservations plus Talos DHCP and Cilium
+  `1.20.1`; Talos-managed kube-proxy remains enabled.
 - Initial storage: disposable node-local storage.
 - Secret plan: private Git repository with SOPS-encrypted Talos secrets; dedicated
   age private identity outside Git and backed up in a password manager.
@@ -359,7 +391,7 @@ continue with configuration apply, exactly one bootstrap, Cilium and Flux.
 | `S04B` | Complete | Installed `rudtal-worker-2` on its approved 512 GB NVMe; removed boot media; verified authenticated Talos and Kubernetes `Ready` |
 | `S05` | Complete | Recorded Talos/Kubernetes baseline; deployed and cleaned up a LAN NodePort workload; rebooted and recovered only the control plane; documented worker continuity and reconciliation |
 | `S06` | Complete | Bootstrapped Flux v2.9.5 on GitHub, added the declarative cluster/infrastructure/apps layout, proved reconciliation and drift correction, and pruned the disposable check |
-| `S07` | In progress | Workers are reset; corrected singleton control-plane reset and the remaining Cilium rebuild are ready to resume |
+| `S07` | Complete | Rebuilt a fresh Cilium `1.20.1` cluster, proved Flux adoption, cross-node networking/policy paths, main handoff, and read-only credential rotation |
 | `S08` | Not started | Tailscale operator and access controls |
 | `S09` | Not started | Full teardown and reproducible rebuild |
 | `S10A` | Not started | Portable pinned tools and separated routine/break-glass administration paths |

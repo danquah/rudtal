@@ -755,6 +755,74 @@ Optional exercise: explain why removing a sole etcd member is different from
 draining a worker, and list the three independent observations that prove a
 maintenance-mode target is the intended physical machine.
 
+## S07B P2: Cilium rebuild, GitOps handover, and promotion
+
+### What happened
+
+The reviewed singleton continuation resumed from two workers already in
+maintenance mode. Fresh Cilium no-CNI configs validated for all three machines.
+The control plane identity again matched its AirDisk NVMe, then
+`reset --graceful=false` erased the old one-member generation without trying to
+leave etcd. All three reviewed configs applied, and Talos bootstrapped etcd
+once on `rudtal-cp-1`.
+
+During the no-CNI bootstrap window, only etcd, apid, and Kubernetes `/readyz`
+were required. The pinned Cilium `1.20.1` chart passed manifest, layer,
+Cosign, lint, and render gates before Helm installed it. Three Cilium agents
+made all nodes Ready; full Talos health, CoreDNS, Envoy, two operators, and
+the Talos-managed kube-proxy then passed.
+
+Flux bootstrapped from `experiment/cilium-s07` using a temporary GitHub
+write-capable deploy key. Helm history proved that helm-controller adopted the
+imperative Cilium release by creating successful revision 2. The cross-worker
+test proved direct Pod-IP, ClusterIP, DNS, and NodePort traffic. Its
+CiliumNetworkPolicy allowed the selected client and made the blocked client
+time out; namespace deletion removed all test state.
+
+After stable reconciliation, `main` received the experiment state. The same
+source-handoff commit was placed on both branches, then Flux fetched
+`main@sha1:f07fd5e7`. A new read-only deploy key fetched that revision from the
+cluster Secret before the temporary write key and experiment branch were
+retired. Local rendered configs, temporary verification files, test manifests,
+and both deploy-key pairs were removed.
+
+### Administrative lesson
+
+Talos owns machine bootstrap and etcd generation; Cilium supplies Pod
+networking after the Kubernetes API is available. With `cni: none`, NotReady
+nodes are an expected bootstrap condition, not a reason to run full health or
+retry etcd bootstrap. On a singleton control plane, `--graceful=false` is the
+deliberate exception because graceful reset attempts to leave a member that
+cannot leave itself.
+
+OCI manifest and layer digests establish exactly which chart bytes Helm can
+install. Cosign establishes who signed that manifest. Helm release revision
+history and a Ready HelmRelease establish Flux ownership of a pre-existing
+release. Those are distinct claims and must all be observed.
+
+The data plane has separate contracts: Pod IP crosses the CNI overlay,
+ClusterIP and NodePort use service handling, DNS reaches CoreDNS, and a
+CiliumNetworkPolicy changes endpoint admission only after it selects a target.
+Pinning Pods to separate workers prevents a local-only test from masquerading
+as cross-node proof.
+
+### Reusable commands and recovery
+
+Use pinned `talosctl health` only after Cilium makes nodes Ready. Use `flux get
+sources git -A`, `flux get kustomizations -A`, `flux get sources oci -A`, and
+`flux get helmreleases -A` to prove source, dependency graph, chart source,
+and release health. `helm history cilium --namespace kube-system` distinguishes
+the initial Helm CLI release from helm-controller adoption.
+
+If Cilium later fails acceptance, rebuild the recorded Flannel baseline as a
+new cluster generation; do not swap CNIs in place. If Flux cannot fetch with a
+replacement credential, keep the prior verified credential, restore only that
+Secret, and prove a source fetch before retiring any key or branch.
+
+Optional exercise: trace one request from the worker-2 client to the worker-1
+Pod by Pod IP, then explain which component changes for ClusterIP, NodePort,
+and the namespaced CiliumNetworkPolicy test.
+
 ## Entry template
 
 ```markdown

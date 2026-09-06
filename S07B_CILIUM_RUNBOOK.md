@@ -319,6 +319,13 @@ credential. It requires operator approval for the GitHub deploy key. The
 explicit kubeconfig selects only the fresh cluster. Do not display the
 credential Secret or use `--force`.
 
+Before this command, create the temporary bootstrap key under ignored `state/`
+with `ssh-keygen -q -t ed25519 -N '' -f state/flux-s07-bootstrap-deploy-key`.
+Show only its `.pub` file while the operator registers it in GitHub with write
+access. Once that UI action is confirmed, pass the private file explicitly and
+use `--silent`; never print the private half or the resulting Secret.
+
+
 ```sh
 KUBECONFIG="$KUBECONFIG_PATH" "$HOME/bin/flux" bootstrap git \
   --url=ssh://git@github.com/danquah/rudtal.git \
@@ -326,7 +333,9 @@ KUBECONFIG="$KUBECONFIG_PATH" "$HOME/bin/flux" bootstrap git \
   --path=clusters/rudtal \
   --version=v2.9.5 \
   --network-policy=true \
-  --watch-all-namespaces=true
+  --watch-all-namespaces=true \
+  --private-key-file=state/flux-s07-bootstrap-deploy-key \
+  --silent
 
 helm status cilium --kubeconfig "$KUBECONFIG_PATH" --namespace kube-system
 helm history cilium --kubeconfig "$KUBECONFIG_PATH" --namespace kube-system
@@ -539,6 +548,28 @@ After all experiment checks remain Ready for one reconciliation interval:
    source fetch.
 5. After a successful main fetch and stable reconciliation, remove the old
    experiment deploy key in GitHub, then delete the remote experiment branch.
+
+## S07B completion evidence — 2026-09-06
+
+The corrected singleton-control-plane reset completed with `--graceful=false`;
+the existing maintenance-mode workers were not reset again. Fresh configs
+validated and applied, and etcd was bootstrapped exactly once for the fresh
+generation. The pinned Cilium manifest, layer, and Cosign identity/issuer
+verification passed before Helm installed release revision 1.
+
+Three agents, three Envoy Pods, two operators, CoreDNS, kube-proxy, every node,
+and full Talos health passed. Flux adopted the release through Helm revision 2
+and reported a Ready OCIRepository/HelmRelease. The temporary `s07-nettest`
+namespace proved direct cross-node Pod IP, ClusterIP, DNS, and every-node
+NodePort traffic; its CiliumNetworkPolicy allowed only the labelled client and
+timed out the blocked client. The namespace was deleted.
+
+After one stable reconciliation interval, both branches received the
+`ref.branch: main` handoff commit. The live source fetched
+`main@sha1:f07fd5e7`; every Kustomization, Cilium source, and HelmRelease was
+Ready. A new read-only deploy key then fetched `main` successfully through a
+source interval before the temporary write key and experiment branch were
+retired.
 
 ## Rollback: fresh Flannel baseline generation
 
