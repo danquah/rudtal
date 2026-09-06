@@ -1,5 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# Platform controllers are added here only after their version and rollback path
-# are reviewed. The S06 baseline keeps this directory empty.
-resources: []
+# Platform controllers are version-pinned and reconciled before their dependent
+# configuration. Credential data is never committed in these directories.
+resources:
+  - cilium
+  - tailscale

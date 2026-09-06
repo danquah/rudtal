@@ -1,0 +1,50 @@
+// S08 additive fragment for the existing single-user tailnet policy.
+// The accepted tailnet baseline permits all network connectivity. This fragment
+// limits only the Kubernetes impersonation capability; it does not add network
+// denial. Do not replace unrelated policy, ACLs, tags, routes, tests, or JetKVM
+// rules. It contains no credential, tailnet name, MagicDNS name, auth key, or
+// device identifier.
+{
+  "groups": {
+    "group:rudtal-k8s-routine-readers": [
+      "mads@danquah.dk",
+    ],
+  },
+
+  "tagOwners": {
+    "tag:rudtal-k8s-operator": [],
+    "tag:rudtal-k8s-api": ["tag:rudtal-k8s-operator"],
+    "tag:rudtal-k8s-unexposed": ["tag:rudtal-k8s-operator"],
+  },
+
+  // Dedicated API proxies advertise a Tailscale Service. This does not approve
+  // any future proxy carrying tag:rudtal-k8s-unexposed.
+  "autoApprovers": {
+    "services": {
+      "svc:*": ["tag:rudtal-k8s-api"],
+    },
+  },
+
+  "grants": [
+    {
+      // The baseline global network grant controls connectivity. This capability
+      // alone maps the approved Tailscale identity to the Kubernetes reader
+      // group; no other identity receives that Kubernetes group.
+      "src": ["group:rudtal-k8s-routine-readers"],
+      "dst": ["tag:rudtal-k8s-api"],
+      "ip": ["tcp:443"],
+      "app": {
+        "tailscale.com/cap/kubernetes": [
+          { "impersonate": { "groups": ["rudtal-k8s-routine-readers"] } },
+        ],
+      },
+    },
+  ],
+
+  "tests": [
+    {
+      "src": "group:rudtal-k8s-routine-readers",
+      "accept": ["tag:rudtal-k8s-api:443"],
+    },
+  ],
+}

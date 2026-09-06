@@ -1,0 +1,30 @@
+# Tailscale Kubernetes Operator 1.102.3. The chart is pinned by HelmRelease.
+# Do not set oauth.clientId or oauth.clientSecret here. The separately bootstrapped
+# tailscale/operator-oauth Secret is mounted by the chart's default volume.
+installCRDs: true
+
+operatorConfig:
+  defaultTags:
+    - tag:rudtal-k8s-operator
+  image:
+    repository: tailscale/k8s-operator
+    tag: v1.102.3
+    # Multi-architecture index digest resolved from the official Docker Hub tag
+    # on 2026-09-06. Tailscale does not provide a configured signature verifier.
+    digest: sha256:d86a8be7ad9d38714968f5d4e010ba8dad30c8f672736ef94eda9b250febeb12
+    pullPolicy: IfNotPresent
+
+# Future Service/Ingress proxies are deliberately unreachable until a reviewed
+# resource explicitly opts in with a different policy-controlled tag.
+proxyConfig:
+  defaultTags: tag:rudtal-k8s-unexposed
+  image:
+    repository: tailscale/tailscale
+    tag: v1.102.3
+    digest: sha256:8c42c4574ab066384fcb72f69e086a2ff1dd3652eb6f56856cee34bcf0d2f680
+
+# A dedicated ProxyGroup, not the single operator Pod, proxies the API. The
+# chart creates only the impersonation RBAC; Kubernetes RBAC is declared below.
+apiServerProxyConfig:
+  allowImpersonation: "true"
+  mode: "false"
