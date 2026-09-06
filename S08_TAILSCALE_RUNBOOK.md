@@ -1,8 +1,9 @@
 # S08 Tailscale Operator and access controls
 
-Status: preparation on `experiment/tailscale-s08`. No Tailscale account,
-JetKVM, Talos, router, or Kubernetes state has changed while preparing this
-runbook.
+Status: deployed from `main@sha1:88e2e2eb`. The Operator HelmRelease is Ready
+and both API proxy Pods are Running, but the ProxyGroup is awaiting Tailscale
+DNS/TLS certificate readiness and has no advertised URL. Remote allowed/denied
+Kubernetes authorization proof is still pending.
 
 ## Scope and ownership
 
@@ -81,7 +82,9 @@ Kubernetes RBAC remain least-privilege at the API authorization layer:
   it has no S08-specific connectivity grant or Service auto-approval.
 
 Only `tag:rudtal-k8s-api` can advertise the API's Tailscale Service. Tailscale
-HTTPS was enabled and the merged policy passed the admin-console validation.
+HTTPS is enabled and the merged policy passed the admin-console validation.
+MagicDNS and the TLS certificate status of both API proxy machines must be
+confirmed before the ProxyGroup can advertise its HTTPS URL.
 
 The OAuth client is created in **Tailscale → Settings → Trust credentials**
 with `tag:rudtal-k8s-operator` and exactly these write scopes, which Tailscale

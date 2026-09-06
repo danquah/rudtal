@@ -823,44 +823,49 @@ Optional exercise: trace one request from the worker-2 client to the worker-1
 Pod by Pod IP, then explain which component changes for ClusterIP, NodePort,
 and the namespaced CiliumNetworkPolicy test.
 
-## S08: Tailscale access preparation and review gate
+## S08: Tailscale Operator deployment and certificate gate
 
 ### What happened
 
-Preparation created no Tailscale account object, OAuth credential, JetKVM
-change, router forwarding, Talos change, Kubernetes object or Flux
-reconciliation. The local `experiment/tailscale-s08` branch instead contains a
-pinned Tailscale Operator HelmRelease, a two-replica authenticated API
-ProxyGroup, a narrow Kubernetes read-only role, an additive tailnet-policy
-fragment and a helper that accepts an OAuth value interactively without putting
-it in Git or command arguments.
+The reviewed S08 configuration was promoted to `main` and Flux reconciled the
+Tailscale Operator `1.102.3`, its CRDs, a two-replica authenticated Kubernetes
+API ProxyGroup, and the narrow `rudtal-k8s-routine-readers` ClusterRoleBinding.
+The operator created a tag-bound OAuth client in Tailscale and used the
+interactive bootstrap helper to create the cluster-only
+`tailscale/operator-oauth` Secret; no credential material was displayed or
+committed. The user also set a JetKVM local password; JetKVM is not enrolled in
+the tailnet.
 
-The live preflight found three Ready nodes, Cilium healthy, and Flux sources,
-Kustomizations and the Cilium HelmRelease Ready. Kubernetes exposed only
-ClusterIP Services and no Gateway/Ingress route or NodePort. The control-plane
-API answered at its expected LAN address. This is evidence about Kubernetes;
-it cannot prove the router has no WAN forward or describe JetKVM.
+Both API proxy Pods are Running and connected to Tailscale, but the ProxyGroup
+is not Ready or advertising a URL because its TLS certificate has not completed
+provisioning. Tailscale HTTPS is enabled; MagicDNS and the proxy machines'
+certificate status must be verified in the Tailscale console before testing.
+No allowed or denied remote Kubernetes authorization claim is made yet.
+
+The retained single-user tailnet policy is network-unrestricted by the
+operator's decision. Least privilege is therefore enforced only at the
+application boundary: Tailscale may authenticate the selected identity to the
+proxy, and Kubernetes RBAC permits it only get/list/watch on named
+observability resources. It cannot read Secrets or ConfigMaps, read logs,
+exec/attach/port-forward, or mutate resources.
 
 ### Administrative lesson
 
-Tailscale identity and Kubernetes authorization are separate checks. The
-single-user tailnet retains its pre-existing unrestricted network grant, while
-the S08 application capability maps only the approved identity to a named
-Kubernetes group. The ClusterRoleBinding gives that group no Secret, ConfigMap,
-log, exec, port-forward or mutation permission. Talos remains another control
-plane: `tailscale configure kubeconfig` creates a local Kubernetes connection
-configuration, not a Talos client identity.
+The API ProxyGroup has three independent readiness layers. Kubernetes schedules
+the proxy Pods; Tailscale registers their tagged identities and provisions the
+HTTPS certificate; Kubernetes then receives the authenticated proxied request
+and evaluates RBAC. A Running Pod proves only the first two registration steps,
+not that there is a usable HTTPS endpoint or authorization.
 
-The Operator OAuth client is a machine-management credential, not a human
-administrator credential. A pre-created `tailscale/operator-oauth` Secret is
-the selected lab boundary: it avoids putting the Talos age identity into Flux
-and postpones creation of a separate Flux/SOPS recovery identity until S10.
-Rotation replaces the secret and restarts the Operator before the old OAuth
-client is revoked. Removal deletes the ProxyGroup endpoint before pruning the
-Operator declarations; direct LAN administration remains the recovery path.
+Tailscale's HTTPS certificate workflow requires MagicDNS and HTTPS Certificates
+to be enabled. Turning on MagicDNS changes tailnet DNS resolution, not Talos,
+the router, or Kubernetes. It is safe to repeat, but disabling it after a
+certificate-backed proxy is working breaks that endpoint. Direct LAN
+`state/kubeconfig` administration remains the recovery path while the proxy is
+incomplete.
 
-Optional exercise: trace why a request that reaches the API ProxyGroup can
-still receive `no` from `kubectl auth can-i get secrets --all-namespaces`.
+Optional exercise: explain why an authenticated API-proxy client can list Pods
+but receives `no` from `kubectl auth can-i get secrets --all-namespaces`.
 
 ## Entry template
 

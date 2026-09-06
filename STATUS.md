@@ -26,11 +26,16 @@ virtual media unmounted. S05 changed no configuration, storage or boot media;
 Tailscale remains untouched.
 
 - Date recorded: 2026-09-06
-- Current session: `S08` preparation — credential-free Tailscale Operator,
-  dedicated API ProxyGroup, tailnet-policy fragment, least-privilege Kubernetes
-  RBAC, bootstrap/rotation runbook, and local review are ready on
-  `experiment/tailscale-s08`; no Tailscale, JetKVM, router, Talos, Kubernetes,
-  Flux, or credential state has changed.
+- Current session: `S08` deployment — the reviewed Tailscale Operator, a
+  two-replica authenticated Kubernetes API ProxyGroup, narrow Kubernetes RBAC,
+  and tailnet-policy fragment are promoted and reconciled from
+  `main@sha1:88e2e2eb`. The operator created the dedicated OAuth client and
+  bootstrapped its value into the cluster-only `tailscale/operator-oauth` Secret;
+  neither credential value nor Secret data was displayed.
+- The Operator HelmRelease is Ready at `1.102.3`. Its two tagged API proxy Pods
+  are Running, but the ProxyGroup is not yet Ready or advertising an HTTPS URL:
+  its certificate is awaiting Tailscale DNS/TLS verification. No remote allowed
+  or denied Kubernetes authorization proof has been performed.
 - Fresh cluster generation: `rudtal-cp-1`, `rudtal-worker-1`, and
   `rudtal-worker-2` are `Ready` on Talos `v1.12.12` and Kubernetes `v1.35.8`.
 - Hardware identity before the destructive boundary and again in maintenance
@@ -63,12 +68,14 @@ Tailscale remains untouched.
 - Rendered Talos outputs, temporary Cosign/chart files, test manifests, and
   both local deploy-key pairs were removed. `state/kubeconfig` remains ignored
   for routine local administration and was not displayed.
-- S08 preparation independently observed three Ready nodes, a Ready Flux source
-  and all five Kustomizations at `main@sha1:dd6daa42`, a Ready Cilium
-  HelmRelease, three Running Cilium agents, only ClusterIP Kubernetes Services,
-  no Gateway/Ingress/HTTPRoute/TCPRoute/UDPRoute, and no NodePort. The API was
-  reachable only at the expected control-plane LAN address; router WAN-forward
-  and JetKVM posture still require the operator's console review.
+- S08 post-deployment observation: all three nodes remained Ready; three Cilium
+  agents and CoreDNS `2/2` were Running; Flux Kustomizations including
+  `infra-tailscale` and both HelmReleases were Ready at
+  `main@sha1:88e2e2eb`. Kubernetes declares only ClusterIP Services, no
+  Ingress, and no NodePort. This does not audit router WAN forwarding.
+- The user set a new JetKVM local password. JetKVM remains outside the tailnet;
+  no router, Talos machine configuration, subnet route, exit node, or public
+  Kubernetes exposure was changed by S08.
 - S05 baseline before workload: Talos `get cpustats` cumulative user/system and
   `get memorystats` used/total (reported KiB) were `rudtal-cp-1` `178/528.83`,
   `1,928,672/16,057,704`; `rudtal-worker-1` `79.53/70.97`,
@@ -402,7 +409,7 @@ change JetKVM, or reuse the retired bootstrap deploy credential.
 | `S05` | Complete | Recorded Talos/Kubernetes baseline; deployed and cleaned up a LAN NodePort workload; rebooted and recovered only the control plane; documented worker continuity and reconciliation |
 | `S06` | Complete | Bootstrapped Flux v2.9.5 on GitHub, added the declarative cluster/infrastructure/apps layout, proved reconciliation and drift correction, and pruned the disposable check |
 | `S07` | Complete | Rebuilt a fresh Cilium `1.20.1` cluster, proved Flux adoption, cross-node networking/policy paths, main handoff, and read-only credential rotation |
-| `S08` | Prepared — awaiting approval | Credential-free Flux, API-proxy, RBAC, policy, bootstrap and recovery artifacts are reviewable on `experiment/tailscale-s08`; no live or external state changed |
+| `S08` | Deployment in progress | Operator and two API proxy Pods reconciled from `main`; certificate readiness, remote allowed/denied RBAC proof, and final handoff await MagicDNS/TLS verification |
 | `S09` | Not started | Full teardown and reproducible rebuild |
 | `S10A` | Not started | Portable pinned tools and separated routine/break-glass administration paths |
 | `S10B` | Not started | Tailscale/RBAC and 1Password recovery drill from a clean trusted machine |
