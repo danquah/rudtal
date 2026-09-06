@@ -22,16 +22,16 @@ and direct LAN `state/kubeconfig` administration remain the recovery paths.
 ## Architecture
 
 ```text
-approved Tailscale user device
-  └─ HTTPS 443 over tailnet grant only
-       └─ 2x tag:rudtal-k8s-api ProxyGroup Pods
+single-user tailnet device
+  └─ existing unrestricted tailnet connectivity
+       └─ HTTPS 443 to 2x tag:rudtal-k8s-api ProxyGroup Pods
             └─ authenticated Kubernetes API proxy
                  └─ impersonates group rudtal-k8s-routine-readers
                       └─ ClusterRole read-only inventory and Flux status
 
-No tailnet grant → Talos API, LAN node addresses, Operator device,
-subnet route, exit node, JetKVM, or future Service proxy.
-```
+The retained tailnet baseline can reach other tailnet devices. S08 adds no
+subnet route, exit node, JetKVM enrollment, or Kubernetes permission outside
+the impersonated reader group.
 
 The ProxyGroup is selected over the in-process proxy because its two replicas
 are independent of the Operator Deployment and pre-provision API certificates.
@@ -69,17 +69,19 @@ operator/proxy images use `v1.102.3`.
 
 ## Tailnet policy and OAuth client
 
-Merge `docs/policies/tailscale-s08.hujson` into the existing policy after
-replacing only `REPLACE_WITH_TAILSCALE_LOGIN`. It introduces three tags:
+The accepted single-user tailnet baseline retains unrestricted network
+connectivity. `docs/policies/tailscale-s08.hujson` therefore adds tags,
+Service auto-approval, and the Kubernetes impersonation capability for
+`mads@danquah.dk`; it does not claim a tailnet network deny. The group and
+Kubernetes RBAC remain least-privilege at the API authorization layer:
 
 - `tag:rudtal-k8s-operator`: OAuth identity and Operator device;
-- `tag:rudtal-k8s-api`: the only proxy reachable by the routine-reader group;
+- `tag:rudtal-k8s-api`: API ProxyGroup identity;
 - `tag:rudtal-k8s-unexposed`: safe default for a future Service/Ingress proxy;
-  it has no connectivity grant or Service auto-approval.
+  it has no S08-specific connectivity grant or Service auto-approval.
 
-The fragment also lets only `tag:rudtal-k8s-api` advertise the API's Tailscale
-Service. Before saving it, enable Tailscale HTTPS for the tailnet and use the
-admin-console policy editor to validate the merged policy and its tests.
+Only `tag:rudtal-k8s-api` can advertise the API's Tailscale Service. Tailscale
+HTTPS was enabled and the merged policy passed the admin-console validation.
 
 The OAuth client is created in **Tailscale → Settings → Trust credentials**
 with `tag:rudtal-k8s-operator` and exactly these write scopes, which Tailscale

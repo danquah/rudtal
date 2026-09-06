@@ -1,12 +1,13 @@
-// S08 additive fragment. Merge these entries into the existing tailnet policy;
-// do not replace unrelated policy, ACLs, tags, routes, tests, or JetKVM rules.
-// Replace the placeholder with the exact Tailscale login of the approved routine
-// administrator before saving in the Tailscale admin console. This file has no
-// credential, tailnet name, MagicDNS name, auth key, or device identifier.
+// S08 additive fragment for the existing single-user tailnet policy.
+// The accepted tailnet baseline permits all network connectivity. This fragment
+// limits only the Kubernetes impersonation capability; it does not add network
+// denial. Do not replace unrelated policy, ACLs, tags, routes, tests, or JetKVM
+// rules. It contains no credential, tailnet name, MagicDNS name, auth key, or
+// device identifier.
 {
   "groups": {
     "group:rudtal-k8s-routine-readers": [
-      "REPLACE_WITH_TAILSCALE_LOGIN",
+      "mads@danquah.dk",
     ],
   },
 
@@ -26,9 +27,9 @@
 
   "grants": [
     {
-      // Connectivity and the Kubernetes impersonation group are both needed.
-      // No grant reaches the Operator device, LAN nodes, Talos API, subnet
-      // routes, exit nodes, or any unreviewed future Service proxy.
+      // The baseline global network grant controls connectivity. This capability
+      // alone maps the approved Tailscale identity to the Kubernetes reader
+      // group; no other identity receives that Kubernetes group.
       "src": ["group:rudtal-k8s-routine-readers"],
       "dst": ["tag:rudtal-k8s-api"],
       "ip": ["tcp:443"],
@@ -44,10 +45,6 @@
     {
       "src": "group:rudtal-k8s-routine-readers",
       "accept": ["tag:rudtal-k8s-api:443"],
-      "deny": [
-        "tag:rudtal-k8s-operator:443",
-        "tag:rudtal-k8s-unexposed:443",
-      ],
     },
   ],
 }

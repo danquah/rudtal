@@ -843,12 +843,12 @@ it cannot prove the router has no WAN forward or describe JetKVM.
 
 ### Administrative lesson
 
-Tailscale identity and Kubernetes authorization are separate checks. A tailnet
-grant permits TLS traffic to the API ProxyGroup; the proxy then impersonates a
-named Kubernetes group; the ClusterRoleBinding permits only its declared verbs.
-The design deliberately gives that group no Secret, ConfigMap, log, exec,
-port-forward or mutation permission. Talos remains another control plane:
-`tailscale configure kubeconfig` creates a local Kubernetes connection
+Tailscale identity and Kubernetes authorization are separate checks. The
+single-user tailnet retains its pre-existing unrestricted network grant, while
+the S08 application capability maps only the approved identity to a named
+Kubernetes group. The ClusterRoleBinding gives that group no Secret, ConfigMap,
+log, exec, port-forward or mutation permission. Talos remains another control
+plane: `tailscale configure kubeconfig` creates a local Kubernetes connection
 configuration, not a Talos client identity.
 
 The Operator OAuth client is a machine-management credential, not a human
