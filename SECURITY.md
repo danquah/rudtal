@@ -13,7 +13,7 @@ administrator access to machines, Kubernetes, and the Tailscale account.
 | `kubeconfig` | Kubernetes API client identity | Keep outside Git; regenerate and rotate as needed |
 | SOPS age identity | Decrypts every secret encrypted to it | Keep outside Git and back up in a password manager |
 | 1Password secret reference | Locates the age identity but does not itself contain it | Supply locally; keep account, vault and item names out of public Git |
-| Tailscale OAuth secret | Lets the operator create or manage tagged tailnet devices | Give minimal scopes; store only in a SOPS-encrypted Kubernetes Secret |
+| Tailscale OAuth secret | Lets the operator create or manage tagged tailnet devices | Give minimal scopes; S08 uses a documented cluster-only bootstrap Secret rather than Git plaintext or the Talos age identity |
 | JetKVM | Full keyboard, console and virtual boot-media control over an attached node | Require a local password, a dedicated Tailscale tag and narrowly scoped tailnet access |
 
 Talos rotates server-side certificates automatically. Client certificates in
@@ -38,8 +38,10 @@ Tailscale and later applications should be declared under the repository's
 Kubernetes directories and reconciled by Flux. A one-time bootstrap exception is
 acceptable for Flux itself and for Cilium when no pod network exists yet; record
 that exception and transfer ownership to Git as soon as the controllers are
-healthy. Pin chart and image versions, keep credentials in SOPS-encrypted Secrets,
-and document any emergency imperative change so Git can be made authoritative again.
+healthy. Pin chart and image versions. Keep credentials in SOPS-encrypted
+Secrets or a narrowly documented, cluster-only bootstrap Secret; never load the
+Talos age identity into Flux. Document any emergency imperative change so Git
+can be made authoritative again.
 
 If plaintext cluster secrets or a rendered machine config enter Git history, do
 not rely on deleting the file from the latest commit. Generate a new Talos secrets

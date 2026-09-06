@@ -1,0 +1,27 @@
+# The ProxyClass pins the image used by the dedicated kube-apiserver proxies.
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyClass
+metadata:
+  name: rudtal-k8s-api
+spec:
+  statefulSet:
+    pod:
+      tailscaleContainer:
+        image: tailscale/k8s-proxy@sha256:82de09cb7b97b7e59201c21af2d4a189d688e448948b092c2e020b3ccd9d4546
+---
+# Two replicas keep the API proxy independent from the Operator Deployment.
+# Tailscale HTTPS terminates at these tailnet-only proxies; this creates no
+# router port-forward, LoadBalancer Service, Ingress, subnet route, or exit node.
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyGroup
+metadata:
+  name: rudtal-k8s-api
+spec:
+  type: kube-apiserver
+  replicas: 2
+  tags:
+    - tag:rudtal-k8s-api
+  proxyClass: rudtal-k8s-api
+  kubeAPIServer:
+    hostname: rudtal-k8s-api
+    mode: auth
