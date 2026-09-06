@@ -26,8 +26,8 @@ The operator removed the physical installer USB after reboot and left JetKVM
 virtual media unmounted. S05 changed no configuration, storage or boot media;
 Tailscale remains untouched.
 
-- Date recorded: 2026-09-05
-- Current session: `S07A`, Cilium rebuild design and offline preparation
+- Date recorded: 2026-09-06
+- Current session: `S07A`, corrected Cilium rebuild design and offline validation
 - Active physical node: `rudtal-cp-1` (rebooted and restored)
 - Control-plane and Kubernetes address: `192.168.1.121`
 - Worker address: `192.168.1.122`
@@ -188,40 +188,58 @@ Tailscale remains untouched.
 
 ## S07A record
 
-- Scope: offline design and branch-local preparation only. No Talos node, disk,
-  machine configuration, etcd state, Kubernetes object, Flux reconciliation or
-  GitHub branch was changed by S07A.
-- The live read-only baseline on 2026-09-05 remained three Ready nodes on
-  Kubernetes `v1.35.8`, Talos `v1.12.12`, Flannel and kube-proxy, with CoreDNS
-  and all four Flux controllers healthy. Flux reported
-  `main@sha1:850d7a23`; no Cilium resources were present.
-- `origin/main` was fetched at `850d7a23`. Local `main` is
-  `a6233e47` with one local documentation commit on top, so no fast-forward,
-  merge, rebase or history rewrite was performed.
-- Branch `experiment/cilium-s07` contains the reviewed no-CNI Talos override,
-  optional render hook, pinned Cilium OCI source and HelmRelease, Cilium
-  values, Flux dependency ordering, design document and physical S07B runbook.
-  The branch retains Talos-managed kube-proxy and uses Kubernetes IPAM.
-- Offline evidence: all three Cilium-patched generated machine configs passed
-  pinned strict metal validation; Cilium Kustomize output built and parsed;
-  chart `1.18.13` linted successfully and rendered with the recorded OCI/image
-  digests. Generated configs remain ignored and were never displayed.
-- Lifecycle wording now says etcd is bootstrapped once per fresh cluster
-  generation: once for the initial S03 generation and, only after a deliberate
-  S07B/S09 reset, once for that new generation.
+- Scope: high-reasoning correction and offline validation only. No Talos node,
+  disk, machine configuration, etcd state, Kubernetes object, Flux
+  reconciliation, Git remote, deploy key or credential was changed.
+- The user reports the live Flannel cluster is healthy and Flux watches `main`;
+  S07A did not reconfigure it.
+- The reviewed correction is on `experiment/cilium-s07`, based on its original
+  `1d6a21b` preparation commit. Local `main` is
+  `a6233e47ae953940f460c696965fb3114894a51f`, one documentation commit ahead
+  of `origin/main` (`850d7a23…`). No history was rewritten, pushed, merged or
+  fetched during this correction.
+- Cilium `1.18.13` was rejected because a Helm `kubeVersion` range is not
+  tested-compatibility proof. The reviewed pin is Cilium `1.20.1`, whose
+  current upstream compatibility matrix explicitly lists Kubernetes `1.35` as
+  e2e-tested. Talos remains `v1.12.12`; kube-proxy remains enabled.
+- The OCI manifest is
+  `sha256:906ce40d35daad838d12add8a5ba7033e767767f51799a93c7eace2cec9cdc05`;
+  values pin the selected agent, generic operator and Envoy image digests.
+  Helm 3.19.0 pulled, linted and rendered the chart; the rendered manifest
+  contained all three pinned image digests and no `SYS_MODULE`, `mount-cgroup`
+  or `mount-bpf-fs`.
+- A temporary Cosign v3.1.3 executable matched its upstream SHA-256. The
+  documented Cilium identity/issuer verification then exited successfully:
+  Cosign validated the claims and trusted signing certificate, verified
+  transparency-log inclusion offline, and returned the exact pinned OCI
+  manifest digest. No cluster connection was made.
+- Shell syntax/ShellCheck, Cilium and controller Kustomize builds, Markdown
+  links/fences, and all three freshly rendered Cilium-patched strict Talos
+  metal validations passed. Generated configs remain ignored and were not
+  displayed.
+- The revised S07B sequence uses authenticated installed-node identity checks,
+  worker-first reset, maintenance-mode rechecks, no-CNI API/etcd-only checks,
+  immediate Cilium installation with explicit kubeconfig, then full health.
+  It documents Helm/Flux ownership verification, cross-node policy traffic,
+  safe branch promotion and deploy-key rotation.
+- The future portable administration work is split into S10A implementation and
+  S10B clean-machine proof. Its design separates routine Tailscale/Kubernetes
+  RBAC, scoped Talos clients and full 1Password/SOPS break-glass recovery.
 
-S07B remains gated on reviewer/operator approval of the final branch commit,
-workload and node-local-storage disposability, the one-time branch push for Flux
-bootstrap, endpoint/MAC/disk matches from `INVENTORY.md`, the destructive reset
-and reinstall, and the recorded Flannel rollback rebuild.
+S07B remains gated on review/approval of the final corrected commit, pushing
+local `main` then the experiment branch normally, repeating the successful
+digest-bound Cosign verification, confirming workload and node-local-storage
+disposability, matching endpoint/MAC/disk, and accepting the destructive
+reset/reinstall with the recorded Flannel rollback.
 
 
 ## Next action
 
-Review and approve the S07A branch commit and design. Before any S07B
-physical action, make the experiment branch reachable for Flux, confirm the
-workload/storage disposal decision, match every endpoint/MAC/disk, and retain
-the documented Flannel fresh-generation rollback.
+Review and approve the corrected S07A branch commit. Before any S07B physical
+action, push `main` so live Flux reaches `a6233e47`, then push the reviewed
+experiment branch normally; confirm disposability; and retain the documented
+Flannel fresh-generation rollback. Repeat the artifact-only Cosign command at
+S07B Checkpoint 6 immediately before its Helm install.
 
 ## Known decisions
 
@@ -233,8 +251,9 @@ the documented Flannel fresh-generation rollback.
   age private identity outside Git and backed up in a password manager.
 - GitOps is introduced while Flannel is healthy; Cilium is tested in a disposable
   rebuild before Tailscale is added.
-- Final recovery session: S10 will store the SOPS age identity in 1Password and
-  prove decryption and configuration rendering from a second trusted machine.
+- Final recovery sessions: S10A will build portable, pinned administration tools;
+  S10B will prove routine access and 1Password-backed break-glass recovery from
+  a second trusted machine.
 - Repository curation is deferred to S11, after the rebuild and recovery material
   has stabilized; live Talos and Flux paths remain unchanged until then.
 
@@ -242,7 +261,8 @@ the documented Flannel fresh-generation rollback.
 
 - Confirm LAN CIDR, gateway, DHCP pool, DNS and NTP.
 - Record JetKVM authentication, firmware and Tailscale state.
-- Complete the final 1Password cross-machine recovery drill in S10.
+- Complete portable administration tooling in S10A and the 1Password
+  cross-machine recovery drill in S10B.
 - Complete the final repository curation and clean-clone handoff in S11.
 
 ## Session log
@@ -260,7 +280,8 @@ the documented Flannel fresh-generation rollback.
 | `S07` | In progress | S07A Cilium design and offline preparation complete; destructive S07B rebuild pending approval |
 | `S08` | Not started | Tailscale operator and access controls |
 | `S09` | Not started | Full teardown and reproducible rebuild |
-| `S10` | Not started | 1Password-backed SOPS recovery from a second machine |
+| `S10A` | Not started | Portable pinned tools and separated routine/break-glass administration paths |
+| `S10B` | Not started | Tailscale/RBAC and 1Password recovery drill from a clean trusted machine |
 | `S11` | Not started | Curate durable documentation, archive project history and validate a clean clone |
 
 ## Local tooling

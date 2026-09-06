@@ -7,8 +7,8 @@ spec:
   interval: 1h
   url: oci://quay.io/cilium/charts/cilium
   ref:
-    # OCI manifest digest for Cilium chart 1.18.13, verified with Helm 3.19.0.
-    digest: sha256:876b611ff5c63b79d5e8e2621bdbad237ec9089cde72da333df61ff27b55fc81
+    # OCI manifest digest for Cilium chart 1.20.1, verified with Helm 3.19.0 on 2026-09-06.
+    digest: sha256:906ce40d35daad838d12add8a5ba7033e767767f51799a93c7eace2cec9cdc05
   layerSelector:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy

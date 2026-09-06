@@ -583,62 +583,79 @@ Optional exercise: add a second non-secret ConfigMap under `apps/rudtal/`,
 reconcile it, patch its live value, and use `flux get kustomizations` plus a
 second reconcile to explain why Git becomes authoritative again.
 
-## S07A: Cilium disposable rebuild design
+## S07A: corrected Cilium disposable rebuild design
 
 ### What happened
 
-The live cluster stayed unchanged: all three nodes remained Ready on
-Kubernetes `v1.35.8` and Talos `v1.12.12`, Flannel and kube-proxy remained the
-active datapath, CoreDNS was healthy, and Flux remained Ready at
-`main@sha1:850d7a23`. The work moved to the isolated branch
-`experiment/cilium-s07`; no branch was pushed and no physical node was reset.
+The live cluster stayed unchanged. This review only changed repository material
+on the unpushed `experiment/cilium-s07` branch: Cilium declarations, the S07A
+design, the unexecuted S07B runbook, version pins, shell linting and Flux
+documentation. No node was reset, rebooted, reinstalled or reconfigured; no
+Cilium or credential was installed or created.
 
-The branch now contains a Talos `cluster.network.cni.name: none` override that
-is applied only by an explicit `EXTRA_CONFIG_PATCH`, plus Flux declarations for
-an OCI-pinned Cilium `1.18.13` chart. The experiment retains Talos-managed
-kube-proxy, uses Kubernetes IPAM, reuses Talos cgroupv2/bpffs, omits
-`SYS_MODULE`, and orders Flux as controllers → Cilium → configs → apps. The
-design and [S07B_CILIUM_RUNBOOK.md](S07B_CILIUM_RUNBOOK.md) explain the one-time
-imperative Cilium install before Flux adoption.
+The earlier Cilium `1.18.13` proposal was rejected. Cilium `1.20.1` is now
+pinned because its current upstream compatibility matrix explicitly lists
+Kubernetes `1.35` as e2e-tested. Kubernetes remains `1.35.8`, Talos remains
+`v1.12.12`, and this first experiment keeps kube-proxy. The OCI manifest,
+chart layer, agent, generic operator and Envoy image digests are recorded in
+the design, version pins and declarations.
 
 ### Administrative lesson
 
-Talos owns the host, kubelet, etcd, kube-proxy and the initial CNI selection.
-Flux owns the steady-state Kubernetes objects after its controllers and source
-exist. A no-CNI rebuild is therefore a lifecycle boundary: etcd is bootstrapped
-exactly once for the new cluster generation, Cilium is installed once so pod
-networking exists, and Flux then adopts the matching Helm release. This is not
-an in-place Flannel swap and bootstrap must never be repeated on an initialized
-generation.
+A Helm chart's `kubeVersion` range says the chart accepts a version; it does
+not prove the project tests that Kubernetes release. Prefer the published Cilium
+compatibility matrix when selecting a CNI. OCI pinning fixes the chart bytes,
+while image digests fix the runnable images. Cosign verifies who signed the OCI
+artifact; it is artifact-only and never contacts the Kubernetes API.
 
-The durable state is split deliberately: the public Talos patch and Helm values
-are in Git; generated machine configs and kubeconfig remain ignored local
-state; node identity and disk facts remain in `INVENTORY.md`; the live rollback
-anchor is `850d7a23`. If Cilium acceptance fails, suspend only its Flux
-Kustomization and rebuild a fresh Flannel generation from that anchor rather
-than deleting credentials or forcing ownership.
+The no-CNI rebuild has a strict lifecycle: authenticate to the installed Talos
+nodes and match endpoint/MAC/disk, reset workers before the control plane,
+verify maintenance mode, apply reviewed configs, then bootstrap etcd once for
+the fresh generation. Before Cilium, prove only etcd and API availability;
+nodes are intentionally NotReady. Install Cilium in Talos's bootstrap window,
+then require full Talos and Kubernetes health. The rendered Talos configs and
+kubeconfig stay ignored local state; declarative Helm values and the Talos patch
+live in Git.
 
-### Reusable commands and verification
+Matching `releaseName`, `targetNamespace` and `storageNamespace` lets Flux find
+the same Helm release and its Helm storage, but does not prove controller
+takeover. `disableTakeOwnership: false` allows Helm to claim existing resources;
+it does not transfer release history. The runbook therefore requires observed
+Helm history and HelmRelease readiness. If adoption fails, suspend the
+HelmRelease and keep imperative Cilium running; do not uninstall the only CNI.
 
-`git fetch origin --prune`, `git switch -c`, `kubectl get nodes -o wide`,
-`kubectl get pods -n kube-system`, `flux get sources git -A` and
-`flux get kustomizations -A` establish branch and live-baseline state without
-printing secrets. `EXTRA_CONFIG_PATCH=... ./scripts/render.sh ...` followed by
-the pinned `scripts/validate.sh` checks Talos composition without displaying
-rendered configs. `kubectl kustomize`, Ruby YAML parsing, `helm pull`,
-`helm lint` and `helm template` provide local manifest/chart evidence.
+### Verification and recovery
 
-The observed checks passed for all three machine configs, the Cilium Flux
-manifests, and the pinned chart/image digests. The first `kubectl
-apply --dry-run=client` attempt was not treated as offline evidence because
-this kubectl still attempted API discovery; no object was applied. Recovery for
-S07B is documented at every destructive checkpoint: stop on an endpoint/MAC/disk
-mismatch, do not rerun etcd bootstrap, and return to the recorded Flannel
-fresh-generation rebuild if acceptance fails.
+`sh -n` and ShellCheck passed after correcting the scripts' empty `CDPATH`
+assignment. Cilium/controller Kustomize builds passed. Helm 3.19.0 pulled,
+linted and templated Cilium `1.20.1`; the output contained the three selected
+image digests and omitted `SYS_MODULE`, `mount-cgroup` and `mount-bpf-fs`.
+All three Cilium-patched generated machine configs passed pinned strict-metal
+Talos validation without being displayed. Markdown links and fence balance
+passed.
 
-Optional exercise: explain why the branch must be pushed before Flux bootstrap,
-why Cilium must be installed before Flux can reconcile its HelmRelease, and why
-the three Helm identity fields must remain `cilium`/`kube-system`/`kube-system`.
+A temporary Cosign `v3.1.3` executable matched its upstream SHA-256. The
+documented Cilium identity/issuer verification then exited successfully: claims
+and trusted signing certificate were valid, transparency-log inclusion was
+verified offline, and the returned OCI manifest digest matched the pinned chart.
+This was artifact-only; no Kubernetes API call occurred. Repeat it at S07B
+Checkpoint 6 immediately before Helm is allowed to contact the fresh cluster.
+Recovery from an unhealthy experiment is a new Flannel generation from the
+recorded main commit, not an in-place CNI replacement. Promotion first moves
+reviewed state to main, then places the same `gotk-sync` handoff commit on the
+currently watched experiment branch so Flux safely switches to main; only then
+is a new deploy key verified and the experiment branch/key retired.
+
+The future portable administration plan keeps three trust paths separate:
+Tailscale identity plus Kubernetes RBAC for routine cluster access, short-lived
+Talos reader/operator certificates for machine administration, and the SOPS age
+identity from 1Password only for break-glass recovery. This avoids decrypting
+the cluster's root identity merely to inspect a workload from a temporary
+trusted machine.
+
+Optional exercise: draw the state transition from `CNI: none` to Cilium Ready
+to Flux adoption, then explain why an adoption failure should preserve the
+imperative Cilium release while a CNI failure requires a fresh Flannel rebuild.
 
 ## Entry template
 

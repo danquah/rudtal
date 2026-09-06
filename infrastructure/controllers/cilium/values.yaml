@@ -1,4 +1,4 @@
-# Cilium 1.18.13 on Talos 1.12.12 / Kubernetes 1.35.8.
+# Cilium 1.20.1 on Talos 1.12.12 / Kubernetes 1.35.8.
 # The matching Flux OCIRepository pins the chart manifest digest.
 ipam:
   mode: kubernetes
@@ -44,19 +44,19 @@ securityContext:
 # Pin the Cilium agent and generic operator to release digests published upstream.
 image:
   repository: quay.io/cilium/cilium
-  tag: v1.18.13
-  digest: sha256:6e6e6a82a6a2a6d0bfe6dd7e36cb0222fa48135ad139ddc979b5c3c841e2db1a
+  tag: v1.20.1
+  digest: sha256:ae9ea21f7427fe24bc6ea7247eb552157a1b0a431744045d3f641545ca71d11b
   useDigest: true
 operator:
   replicas: 2
   image:
     repository: quay.io/cilium/operator
-    tag: v1.18.13
-    genericDigest: sha256:2041417ad2ebd8b3e7d80b63dd81810d405fa29f12926ddbe78321a74781993b
+    tag: v1.20.1
+    genericDigest: sha256:6c3885fc7b629099fdbe2a5c87869c86feb825fa18fae299eac0f61918d16ecf
     useDigest: true
 envoy:
   image:
     repository: quay.io/cilium/cilium-envoy
-    tag: v1.36.9-1786864149-07e8503ff34b9190d7bbe4e57d4e185c4ef8b1de
-    digest: sha256:beccdf3c119f299cf696885188584bbd0531d74bca08096113207999aff95e87
+    tag: v1.37.5-1786810558-766ccfb37260a43e9d228837aa84ce3faf9f64e7
+    digest: sha256:75b8094c7127736a2ffd2dce3945e0931cb6df21b0372ff661940eca26730b91
     useDigest: true

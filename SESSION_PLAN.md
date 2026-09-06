@@ -33,7 +33,7 @@ At the start of every session, tell the agent:
 | `S07` | CNI replacement, Cilium datapath, kube-proxy choices, Talos machine configuration, Helm values, network policy and rollback |
 | `S08` | Tailnet identity, Kubernetes authentication and RBAC, operator credentials, tags/grants, service exposure and recovery access |
 | `S09` | Declarative rebuilds, cluster identity versus workload state, credential rotation, reset scope and recovery testing |
-| `S10` | 1Password secret references, SOPS key sources, cross-machine recovery, credential exposure boundaries and recovery verification |
+| `S10A/B` | Portable pinned tools, routine Tailscale/RBAC access, scoped Talos clients, 1Password/SOPS break-glass recovery and clean-machine verification |
 | `S11` | Durable runbooks versus project history, repository information architecture, reference migration, clean-clone validation and secret hygiene |
 
 ## S00: finish control-plane discovery
@@ -252,52 +252,56 @@ Work:
 Stop condition: a clean rebuild succeeds and its procedure is usable without chat
 history.
 
-## S10: 1Password and cross-machine recovery drill
+## S10A: portable administration tooling
 
-Run this after S09. The detailed design
-and command patterns live in `ONEPASSWORD_RECOVERY.md`.
+Run this after S09. The detailed design lives in
+`docs/plans/portable-administration.md`; the break-glass credential flow lives
+in `ONEPASSWORD_RECOVERY.md`.
 
-Goal: prove that Git plus access to the correct 1Password item is enough to recover
-the SOPS decryption capability on another trusted machine without copying
-`talosconfig`, `kubeconfig` or plaintext Talos secrets between machines.
+Goal: make a private-repository clone a safe, repeatable administration entry
+point on supported macOS and Linux machines without global tool installation.
 
 Work:
 
-1. In the 1Password UI, create a dedicated item whose concealed field contains
-   the Rudtal age private-identity line. Record its public recipient, creation date,
-   purpose and rotation instructions in non-secret fields. Do not enter the
-   private identity through shell history or display it during verification.
-2. Install and authenticate the 1Password CLI on a second trusted machine. Clone
-   the private Git repository and install the pinned or documented versions of
-   SOPS, age and `talosctl`. Document the separate Git authentication prerequisite;
-   the age identity does not grant repository access.
-3. Add a small repository script that returns the age identity with `op read` from
-   a secret reference supplied locally through `RUDTAL_AGE_OP_REF`. Configure SOPS
-   through `SOPS_AGE_KEY_CMD`, so the age identity passes directly from the
-   1Password CLI to SOPS and is not persistently written to disk.
-4. Update `render.sh` and `validate.sh` to accept either the existing
-   `SOPS_AGE_KEY_FILE` recovery path or `SOPS_AGE_KEY_CMD`. Keep the 1Password
-   vault/item reference outside tracked files; commit only a placeholder example.
-5. Derive and compare only the public age recipient with `.sops.yaml`. Validate
-   decryption to `/dev/null`, then render and validate the control-plane config in
-   ignored storage. Do not display decrypted YAML or apply it to a node.
-6. Test the documented fallback: use `op read --out-file ... --file-mode 0600` to
-   restore the age identity when command-based integration is unavailable, verify
-   decryption, and securely remove that temporary local copy if it is not intended
-   to remain on the trusted machine.
-7. Write the exact setup, recovery, verification, rotation and lost-access
-   procedure in `ONEPASSWORD_RECOVERY.md`. Record which 1Password account and
-   vault are required without committing account identifiers or vault/item names.
+1. Add a checksum manifest and repository-local installer for `talosctl`,
+   `kubectl`, Flux, Helm, SOPS, age and Cosign on Darwin/Linux amd64/arm64.
+2. Add `doctor`, `tools`, `routine-access`, `recover-admin`, `status` and `clean`
+   commands with explicit ignored config paths and modes `0700`/`0600`.
+3. Keep Git, Tailscale and 1Password CLI as checked external prerequisites; do
+   not sign in, use `sudo`, mutate a global PATH or use `curl | sh`.
+4. Design routine Kubernetes access around the S08 Tailscale API proxy and RBAC,
+   scoped short-lived Talos reader/operator clients, and full SOPS recovery only
+   as break glass.
+5. Add credentialless macOS/Linux tests and CI for checksums, platform selection,
+   idempotence, file modes and cleanup path containment.
 
-Stop condition: a second machine with no pre-existing Rudtal age identity can
-decrypt-test `talos/secrets.sops.yaml` without emitting plaintext, render a valid
-ignored machine config, and explain how `talosconfig` and `kubeconfig` can be
-recreated. The test must also prove that removing 1Password access makes
-decryption fail.
+Stop condition: the portable workflow passes credentialless tests and a security
+review without contacting the cluster or external accounts.
+
+## S10B: 1Password and clean-machine recovery drill
+
+Goal: prove the S10A workflow from a second trusted machine or clean OS account.
+
+Work:
+
+1. Clone with separately configured Git authentication and install the pinned
+   repository-local tools.
+2. Prove routine Kubernetes access through Tailscale with one allowed and one
+   denied RBAC action; prove scoped Talos reader access separately.
+3. Create the dedicated 1Password age-identity item through the UI and use
+   `SOPS_AGE_KEY_CMD` to decrypt-test without persistent plaintext.
+4. Recreate a Talos client configuration, retrieve a fresh kubeconfig and run
+   non-secret health checks. Do not apply a machine config.
+5. Exercise the protected-file fallback, rotation/loss documentation and safe
+   cleanup, then prove removed access fails.
+
+Stop condition: a clean trusted machine can use routine access without the age
+identity, can perform explicit break-glass recovery from Git plus 1Password, and
+can remove all local Rudtal credentials without relying on chat history.
 
 ## S11: repository curation and durable handoff
 
-Run this only after S10, when the installation, rebuild, GitOps and recovery
+Run this only after S10B, when the installation, rebuild, GitOps and recovery
 procedures have been exercised. Moving active handoff files earlier would create
 avoidable churn for agents and links while the project is still changing.
 

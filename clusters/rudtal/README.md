@@ -2,8 +2,8 @@
 
 This directory is the Flux sync root for the `rudtal` cluster. S06 establishes
 Git-controlled Kubernetes add-on management while the cluster remains on the
-known-good Talos and Flannel baseline. Cilium and Tailscale are out of scope for
-S06.
+known-good Talos and Flannel baseline. Cilium is an S07 experiment with a
+separate reviewed design and physical runbook; Tailscale remains out of scope.
 
 ## Repository layout
 
@@ -79,9 +79,10 @@ arm64 archive SHA-256 is:
 2869ef7151a6f1b27e6b5d2a6804f3ef23c7bdaa06a74e00d3fe5bfc646547fd
 ```
 
-Flux is absent locally. The following downloads and installs the pinned CLI but
-is **prepared, not run**. It contacts GitHub and changes local software, so the
-operator must approve it first:
+The pinned CLI is installed locally at `$HOME/bin/flux`. The following is the
+recorded, repeatable installation procedure; run it only when the pinned binary
+is absent or deliberately replaced. It contacts GitHub and changes local
+software, so the operator must approve it first:
 
 ```sh
 set -eu
@@ -102,6 +103,14 @@ install -m 0755 "$tmp_dir/flux" "$HOME/bin/flux"
 
 The checksum must match before installation. Do not use an unpinned package
 manager install for this cluster.
+
+The Markdown command fences in this document are deliberately complete: each
+opening fenced block for `text`, `sh`, or `yaml` has its matching closing fence.
+Keep commands in their fenced blocks when editing this operational document.
+
+For S07, read [the Cilium design](../../S07A_CILIUM_DESIGN.md) before
+[the destructive rebuild runbook](../../S07B_CILIUM_RUNBOOK.md). The latter is
+not an authorization to perform the rebuild.
 
 ## Bootstrap exception and credentials
 

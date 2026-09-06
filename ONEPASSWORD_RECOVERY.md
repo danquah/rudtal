@@ -1,8 +1,8 @@
 # 1Password-backed SOPS recovery
 
-This runbook will be completed and executed in S09. It defines the intended trust
-boundary now so later cluster work does not accumulate unnecessary credential
-backups.
+This runbook will be completed and executed in S10B after the portable tooling
+from S10A is reviewed. See `docs/plans/portable-administration.md` for the wider
+routine-access and clean-machine design.
 
 ## Design
 
@@ -55,7 +55,7 @@ retrieved after recovering the encrypted Talos identity.
 
 ## Preferred command integration
 
-S09 will add a helper with this behavior:
+S10A will add a helper with this behavior:
 
 ```sh
 #!/bin/sh

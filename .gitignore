@@ -3,6 +3,7 @@
 generated/
 state/
 downloads/
+.tools/
 .env
 .env.*
 !.env.example

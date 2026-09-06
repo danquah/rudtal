@@ -62,7 +62,7 @@ Safety rules:
   documentation and record the date.
 - Preserve user edits and never rewrite Git history to clean a credential leak;
   rotate the affected credential or cluster identity.
-- When implementing S10, use the 1Password UI for entering the private age
+- When implementing S10A/S10B, use the 1Password UI for entering the private age
   identity. Never print `op read` output. Prefer `SOPS_AGE_KEY_CMD` and use
   `op read --out-file ... --file-mode 0600` only for the documented fallback.
 
