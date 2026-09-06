@@ -10,6 +10,8 @@ changed and builds a practical Talos administration reference as the lab grows.
 [ONEPASSWORD_RECOVERY.md](ONEPASSWORD_RECOVERY.md) defines the final
 cross-machine credential-recovery drill. The preceding portable workstation
 design is in [docs/plans/portable-administration.md](docs/plans/portable-administration.md).
+The deferred [three-control-plane experiment](docs/plans/ha-control-plane-experiment.md)
+captures the later etcd quorum and resource-cost exercise.
 
 Start with [PROJECT_PLAN.md](PROJECT_PLAN.md). It explains the recommended
 architecture, learning stages, Git layout, Tailscale integration and the later

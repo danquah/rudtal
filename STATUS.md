@@ -334,6 +334,9 @@ continue with configuration apply, exactly one bootstrap, Cilium and Flux.
   a second trusted machine.
 - Repository curation is deferred to S11, after the rebuild and recovery material
   has stabilized; live Talos and Flux paths remain unchanged until then.
+- A schedulable three-control-plane/three-member-etcd experiment is deferred
+  until after the main plan; `docs/plans/ha-control-plane-experiment.md` records
+  the resource measurements, quorum exercise and rollback questions.
 
 ## Open items
 
@@ -342,6 +345,7 @@ continue with configuration apply, exactly one bootstrap, Cilium and Flux.
 - Complete portable administration tooling in S10A and the 1Password
   cross-machine recovery drill in S10B.
 - Complete the final repository curation and clean-clone handoff in S11.
+- Revisit the optional three-control-plane experiment after the main plan.
 
 ## Session log
 

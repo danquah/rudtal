@@ -343,6 +343,15 @@ procedure for each routine task, understand which files are live configuration
 versus history, and verify the lab without relying on the session documents or
 chat history. The live cluster and Flux reconciliation graph are unchanged.
 
+## Deferred experiment: three control planes
+
+After the main learning plan is complete, consider the schedulable
+three-control-plane experiment in
+`docs/plans/ha-control-plane-experiment.md`. It will measure the actual resource
+cost on these machines and exercise etcd quorum, rolling maintenance and
+single-member failure tolerance. It is deliberately outside S07 so the Cilium
+rebuild changes only one major architectural variable.
+
 ## End-of-session protocol
 
 Every agent session must:
