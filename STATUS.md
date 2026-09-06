@@ -27,28 +27,34 @@ virtual media unmounted. S05 changed no configuration, storage or boot media;
 Tailscale remains untouched.
 
 - Date recorded: 2026-09-06
-- Current session: `S07B` P1 pre-destructive preflight only
-- Active physical node: `rudtal-cp-1` (rebooted and restored)
-- Control-plane and Kubernetes address: `192.168.1.121`
-- Worker address: `192.168.1.122`
-- Worker reserved address: `192.168.1.122` for MAC `e0:51:d8:1a:80:37`
-- Worker boot state: installed Talos system booted from the internal NVMe
-- Worker boot media: physical USB removed; JetKVM virtual CD/DVD unmounted
-- Worker internal target: `/dev/nvme0n1`, TWSC TSC3AN512E6-F2T60S, 512 GB; wipe approved and completed
-- Worker hardware observed: Intel N150, 4 cores, 16 GB RAM, wired interface `enp3s0`
-- Worker firmware: Talos SMBIOS data reported `Default string`; firmware version unavailable
-- Talos config applied: yes to `rudtal-cp-1`, `rudtal-worker-1` and
-  `rudtal-worker-2`
-- Worker Talos verification: v1.12.12, RBAC enabled, system disk `nvme0n1`, kubelet `Running`/`OK`
-- Etcd bootstrapped: yes, exactly once for the initial generation in S03; no
-  S07B reset or bootstrap has occurred
-- Kubernetes cluster running: yes; Kubernetes `v1.35.8`, Flannel CNI
-- Kubernetes add-ons: Flux `v2.9.5` is bootstrapped and healthy; Cilium and
-  Tailscale are not installed.
-- Flux source and all four Kustomizations are Ready at observed live revision
-  `main@sha1:a6233e47`; the cluster-only `flux-system` Git credential Secret
-  exists but its contents were never displayed.
-- Control-plane scheduling: enabled; no taints or unschedulable flag observed
+- Current session: `S07B` P2 halted at the control-plane reset checkpoint
+- Destructive scope: the operator authorized the documented disposal and was
+  present at JetKVM; the two worker resets were performed.
+- `rudtal-worker-1` at `192.168.1.122`: graceful reset completed; insecure
+  maintenance resource reads matched wired MAC `e0:51:d8:1a:80:37` and the
+  writable 512 GB TWSC `nvme0n1`.
+- `rudtal-worker-2` at `192.168.1.123`: graceful reset completed; insecure
+  maintenance resource reads matched wired MAC `e0:51:d8:1a:83:85` and the
+  writable 512 GB TWSC `nvme0n1`. Its empty, read-only `sr0` was not used.
+- `rudtal-cp-1` at `192.168.1.121`: its authenticated identity matched wired
+  MAC `e0:51:d8:12:d2:66` and the writable 256 GB AirDisk `nvme0n1` before
+  reset.
+- The reviewed graceful control-plane reset returned a nonzero `leaveEtcd`
+  error because the one-member etcd cluster cannot remove its only started
+  member. It must be treated as a failed checkpoint, not retried automatically.
+- After the failed command, the control plane again required mTLS and answered
+  with Talos v1.12.12/RBAC; its `etcd` service reported `Running`/`OK`. This
+  unexpected persistent installed control-plane state halted S07B immediately.
+- No reviewed configuration was applied after reset. No new etcd generation,
+  Cilium release, Flux bootstrap/credential, networking test, Git promotion,
+  or deploy-key rotation was performed.
+- Fresh Cilium-patched configs passed strict validation, then their ignored
+  `generated/` directory was removed when the physical procedure halted.
+- Existing `state/kubeconfig` remains ignored and was not displayed. It must
+  not be assumed valid for a later fresh generation.
+- Recovery boundary: do not attempt an in-place CNI change or continue from
+  this mixed state. Review and approve a singleton-control-plane reset/rebuild
+  procedure before any further physical action.
 - S05 baseline before workload: Talos `get cpustats` cumulative user/system and
   `get memorystats` used/total (reported KiB) were `rudtal-cp-1` `178/528.83`,
   `1,928,672/16,057,704`; `rudtal-worker-1` `79.53/70.97`,
@@ -272,18 +278,43 @@ authorize a destructive action.
   The P1 handoff is accepted; P2 now waits only for explicit operator approval
   of the documented destructive scope and operator presence at JetKVM.
 
+## S07B P2 halt record
+
+- Fresh Cilium no-CNI configs for all three named nodes were rendered and each
+  passed pinned `talosctl validate --mode metal --strict`; the credential-bearing
+  output was removed after the halt.
+- Immediately before each reset, authenticated Talos reads matched every
+  reserved endpoint, wired `enp3s0` MAC, and system disk in `INVENTORY.md`.
+- The worker-1 and worker-2 commands completed their graceful drain, cleanup,
+  `EPHEMERAL`/`STATE` wipe, reboot, and insecure maintenance identity checks.
+  In Talos v1.12.12, `version --insecure` is unimplemented in maintenance
+  mode; successful insecure `get links` and `get disks` established that mode.
+- The exact non-secret control-plane command was
+  `downloads/talosctl-v1.12.12-darwin-arm64 --talosconfig generated/rudtal-cp-1/talosconfig --nodes 192.168.1.121 reset --graceful --system-labels-to-wipe EPHEMERAL --system-labels-to-wipe STATE --reboot`.
+  It stopped at `leaveEtcd`: `etcdserver: re-configuration failed due to not
+  enough started members`.
+- The subsequent authenticated response from `.121` reported Talos v1.12.12
+  with RBAC and `etcd` `Running`/`OK`; this is unexpected persistent state for
+  the intended reset. The checkpoint is failed and S07B is halted. No
+  configuration apply, bootstrap, Cilium, Flux, test, credential, or Git
+  operation followed.
+- Owner and recovery: the operator must obtain review and approve a
+  singleton-control-plane reset/rebuild procedure from this observed state.
+  Do not retry or alter CNI in place.
+
+
 
 
 ## Next action
 
-Obtain explicit operator approval for the destructive S07B P2 scope. After
-approval, freshly render and validate all three configs and repeat the identity
-match in the same supervised session. The first reset-boundary command is:
-`downloads/talosctl-v1.12.12-darwin-arm64 --talosconfig
-generated/rudtal-cp-1/talosconfig --nodes 192.168.1.122 reset --graceful
---system-labels-to-wipe EPHEMERAL --system-labels-to-wipe STATE --reboot`.
-Do not run it until the configs are freshly rendered, the identity match is
-repeated in the same session, and the operator is present at JetKVM.
+Do not resume S07B P2. Preserve the observed mixed state for review: both
+workers are in Talos maintenance mode, while the control plane still presents
+the prior installed Talos API and a running etcd service. Review the
+single-control-plane graceful-reset failure against primary Talos guidance,
+write and approve a corrected fresh-rebuild procedure, then begin with new
+identity checks and freshly rendered ignored configuration. Do not apply a
+machine config, bootstrap etcd, install Cilium, or modify Flux before that
+review.
 
 ## Known decisions
 
@@ -321,7 +352,7 @@ repeated in the same session, and the operator is present at JetKVM.
 | `S04B` | Complete | Installed `rudtal-worker-2` on its approved 512 GB NVMe; removed boot media; verified authenticated Talos and Kubernetes `Ready` |
 | `S05` | Complete | Recorded Talos/Kubernetes baseline; deployed and cleaned up a LAN NodePort workload; rebooted and recovered only the control plane; documented worker continuity and reconciliation |
 | `S06` | Complete | Bootstrapped Flux v2.9.5 on GitHub, added the declarative cluster/infrastructure/apps layout, proved reconciliation and drift correction, and pruned the disposable check |
-| `S07` | In progress | S07A Cilium design and offline preparation complete; destructive S07B rebuild pending approval |
+| `S07` | Halted | S07A design and P1 preflight passed; S07B P2 reset workers but halted when the reviewed graceful sole-control-plane reset failed before state wipe |
 | `S08` | Not started | Tailscale operator and access controls |
 | `S09` | Not started | Full teardown and reproducible rebuild |
 | `S10A` | Not started | Portable pinned tools and separated routine/break-glass administration paths |

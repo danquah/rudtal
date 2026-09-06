@@ -707,6 +707,52 @@ Optional exercise: compare the three `SystemDisk` resource IDs with the separate
 `Disk` rows and explain why an empty `sr0` device cannot be used as an install or
 reset target.
 
+## S07B P2: halted at the singleton control-plane reset
+
+### What happened
+
+The operator authorized the disposable rebuild with JetKVM available. Fresh
+ignored Cilium no-CNI Talos configs passed strict validation, and authenticated
+pre-reset reads again matched all three reserved endpoints, wired MACs and
+approved NVMe system disks. Worker 1 and worker 2 then completed graceful
+resets and reached maintenance mode with the expected hardware identity.
+
+The reviewed `reset --graceful` on the sole control plane stopped at its
+`leaveEtcd` phase: removing the only started etcd member is not a valid etcd
+membership change. The command returned nonzero. Soon afterward, the control
+plane again required its prior mTLS configuration and reported Talos v1.12.12
+with `etcd` `Running`/`OK`; it did not reach the expected erased-maintenance
+state. S07B stopped before configuration apply, new bootstrap, Cilium, Flux,
+networking tests, promotion or credential rotation. Fresh rendered outputs
+were removed from ignored `generated/`.
+
+### Administrative lesson
+
+`--graceful` is not merely a polite reboot flag: it changes Talos reset
+behavior by attempting Kubernetes drain and etcd leave handling. A
+single-member etcd cluster cannot remove its sole started member and remain a
+valid cluster, so a graceful-reset error is a failed destructive checkpoint,
+not evidence that the machine was wiped. Do not substitute a new reset flag or
+retry a destructive command without a reviewed recovery procedure.
+
+Maintenance mode has a deliberately restricted API. In Talos v1.12.12,
+`talosctl version --insecure` returns `Unimplemented`; successful insecure
+`get links` and `get disks`, together with the absence of the installed CNI
+links and the matched MAC/NVMe, are the usable identity evidence.
+
+### Recovery
+
+The current physical state is mixed: both workers are in maintenance mode and
+the control plane still has its prior installed Talos/etcd state. Preserve that
+fact for the next review. A reviewed, explicitly authorized
+singleton-control-plane reset/rebuild procedure is required before any
+machine-config apply, etcd bootstrap or Cilium action. Never try to repair the
+CNI in place.
+
+Optional exercise: explain why removing a sole etcd member is different from
+draining a worker, and list the three independent observations that prove a
+maintenance-mode target is the intended physical machine.
+
 ## Entry template
 
 ```markdown

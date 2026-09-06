@@ -163,16 +163,34 @@ pinned client and `--insecure`; recheck the MAC and disk before applying a
 config:
 
 ```sh
-"$TALOS" --nodes "$CONTROL_PLANE" version --insecure
 "$TALOS" --nodes "$CONTROL_PLANE" get links --insecure
 "$TALOS" --nodes "$CONTROL_PLANE" get disks --insecure
-"$TALOS" --nodes "$WORKER_1" version --insecure
 "$TALOS" --nodes "$WORKER_1" get links --insecure
 "$TALOS" --nodes "$WORKER_1" get disks --insecure
-"$TALOS" --nodes "$WORKER_2" version --insecure
 "$TALOS" --nodes "$WORKER_2" get links --insecure
 "$TALOS" --nodes "$WORKER_2" get disks --insecure
 ```
+
+On Talos v1.12.12, `version --insecure` returns `Unimplemented` in maintenance
+mode. It is not a maintenance failure. Use successful insecure `get links` and
+`get disks` to establish maintenance access, then match the expected wired MAC,
+disk model and size.
+
+### Observed S07B P2 stop — 2026-09-06
+
+Worker-1 and worker-2 completed the commands above and reached maintenance
+mode with their expected MACs and TWSC NVMe disks. The sole control-plane
+command at line 156 stopped in its graceful `leaveEtcd` phase: etcd rejected
+removal of its only started member with `etcdserver: re-configuration failed
+due to not enough started members`. The command therefore did not establish the
+documented erased-maintenance checkpoint.
+
+After the failed command, the control plane again required mTLS; authenticated
+Talos calls reported v1.12.12/RBAC and `etcd` `Running`/`OK`. That is
+unexpected persistent state. This runbook is halted at Checkpoint 4. Do not
+apply configuration, bootstrap etcd, install Cilium, repair the CNI in place,
+or retry the reset until a replacement singleton-control-plane reset/rebuild
+procedure has been reviewed and explicitly approved.
 
 Use JetKVM or installer media only if a reset node does not reach maintenance
 mode at its reserved address or cannot boot its internal disk. It is a recovery
