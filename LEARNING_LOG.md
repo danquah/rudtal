@@ -657,6 +657,56 @@ Optional exercise: draw the state transition from `CNI: none` to Cilium Ready
 to Flux adoption, then explain why an adoption failure should preserve the
 imperative Cilium release while a CNI failure requires a fresh Flannel rebuild.
 
+## S07B P1: pre-destructive Cilium rebuild preflight
+
+### What happened
+
+P1 used read-only Kubernetes and Talos queries plus local checks. The live
+Flannel cluster remained unchanged: three Ready Talos `v1.12.12` / Kubernetes
+`v1.35.8` nodes, three healthy Flannel Pods, three healthy kube-proxy Pods, and
+four Ready Flux controllers. The Git source and every Kustomization reported
+`main@sha1:a6233e47`; Cilium was absent.
+
+Only system and Flux controller workloads existed. Kubernetes reported no PVC,
+PV, StorageClass, VolumeAttachment or Cilium Pod, so it records no
+Kubernetes-declared persistent volume to preserve. Authenticated Talos reads
+matched each reserved endpoint and wired MAC to the intended internal system
+NVMe: the 256 GB AirDisk control plane and two 512 GB TWSC workers. The
+read-only, empty `sr0` virtual-media device on worker 2 was distinct from its
+`nvme0n1` system disk.
+
+Helm `v3.19.0` pulled the immutable Cilium `1.20.1` chart manifest and its
+archive matched the reviewed layer SHA-256. Helm lint and template passed. A
+temporary Cosign `v3.1.3` binary first matched Sigstore's published Darwin arm64
+SHA-256, then validated Cilium's GitHub identity, GitHub Actions issuer, trusted
+certificate, offline transparency-log inclusion and the exact chart manifest.
+All three Cilium no-CNI Talos configs passed pinned strict-metal validation
+without being displayed. Generated configs, Talos client identity, chart and
+temporary verifier were removed afterward.
+
+### Administrative lesson
+
+This preflight separates evidence from authority. Kubernetes proves the desired
+control-plane, CNI and declared-storage state; Talos proves that each reachable
+machine is the intended physical disk before a reset can erase it. OCI manifest
+and layer hashes answer “which chart bytes?”, while Cosign answers “who signed
+that exact manifest?” Neither artifact check contacts Kubernetes.
+
+`kubectl get nodes/pods/pvc/pv/storageclass/volumeattachments`, `flux get
+sources git -A`, and `flux get kustomizations -A` are repeatable status reads.
+The pinned authenticated `talosctl version`, `get links`, `get disks` and `get
+systemdisk` queries are repeatable machine-identity reads. `helm pull`, lint and
+template plus `cosign verify` are repeatable local supply-chain checks. The
+first non-repeatable boundary is the worker-1 `talosctl reset --graceful
+--system-labels-to-wipe EPHEMERAL --system-labels-to-wipe STATE --reboot`;
+it erases Talos runtime/state partitions. Recovery from a failed Cilium rebuild
+is a new Flannel generation from the documented baseline, never an in-place CNI
+swap.
+
+Optional exercise: compare the three `SystemDisk` resource IDs with the separate
+`Disk` rows and explain why an empty `sr0` device cannot be used as an install or
+reset target.
+
 ## Entry template
 
 ```markdown

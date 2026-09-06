@@ -27,7 +27,7 @@ virtual media unmounted. S05 changed no configuration, storage or boot media;
 Tailscale remains untouched.
 
 - Date recorded: 2026-09-06
-- Current session: `S07A`, corrected Cilium rebuild design and offline validation
+- Current session: `S07B` P1 pre-destructive preflight only
 - Active physical node: `rudtal-cp-1` (rebooted and restored)
 - Control-plane and Kubernetes address: `192.168.1.121`
 - Worker address: `192.168.1.122`
@@ -45,8 +45,8 @@ Tailscale remains untouched.
 - Kubernetes cluster running: yes; Kubernetes `v1.35.8`, Flannel CNI
 - Kubernetes add-ons: Flux `v2.9.5` is bootstrapped and healthy; Cilium and
   Tailscale are not installed.
-- Flux source and Kustomizations are Ready at the observed live Git revision
-  `main@sha1:850d7a23`; the cluster-only `flux-system` Git credential Secret
+- Flux source and all four Kustomizations are Ready at observed live revision
+  `main@sha1:a6233e47`; the cluster-only `flux-system` Git credential Secret
   exists but its contents were never displayed.
 - Control-plane scheduling: enabled; no taints or unschedulable flag observed
 - S05 baseline before workload: Talos `get cpustats` cumulative user/system and
@@ -194,10 +194,9 @@ Tailscale remains untouched.
 - The user reports the live Flannel cluster is healthy and Flux watches `main`;
   S07A did not reconfigure it.
 - The reviewed correction is on `experiment/cilium-s07`, based on its original
-  `1d6a21b` preparation commit. Local `main` is
-  `a6233e47ae953940f460c696965fb3114894a51f`, one documentation commit ahead
-  of `origin/main` (`850d7a23…`). No history was rewritten, pushed, merged or
-  fetched during this correction.
+  `1d6a21b` preparation commit. Before P1, the operator verified local and
+  remote `main` at `a6233e4` and local and remote `experiment/cilium-s07` at
+  `b97fead`; the experiment contains the main baseline. No history was rewritten.
 - Cilium `1.18.13` was rejected because a Helm `kubeVersion` range is not
   tested-compatibility proof. The reviewed pin is Cilium `1.20.1`, whose
   current upstream compatibility matrix explicitly lists Kubernetes `1.35` as
@@ -226,20 +225,65 @@ Tailscale remains untouched.
   S10B clean-machine proof. Its design separates routine Tailscale/Kubernetes
   RBAC, scoped Talos clients and full 1Password/SOPS break-glass recovery.
 
-S07B remains gated on review/approval of the final corrected commit, pushing
-local `main` then the experiment branch normally, repeating the successful
-digest-bound Cosign verification, confirming workload and node-local-storage
-disposability, matching endpoint/MAC/disk, and accepting the destructive
-reset/reinstall with the recorded Flannel rollback.
+S07B remains gated on review/approval of the final corrected experiment commit,
+acceptance of the destructive reset/reinstall and the recorded Flannel rollback.
+P1 repeated the digest-bound Cosign verification, confirmed declared workload
+and storage disposability, and matched endpoint/MAC/system disk; it does not
+authorize a destructive action.
+
+## S07B P1 record
+
+- Scope: read-only live Kubernetes and authenticated Talos discovery plus local
+  artifact/configuration verification. No node was reset, rebooted, reconfigured
+  or applied; etcd, Kubernetes objects, Flux, Git remotes and credentials were
+  not changed.
+- Baseline: `rudtal-cp-1`, `rudtal-worker-1` and `rudtal-worker-2` were Ready
+  at `192.168.1.121`, `.122` and `.123`, on Talos `v1.12.12` and Kubernetes
+  `v1.35.8`. Three Flannel and three kube-proxy Pods were `1/1 Running`;
+  CoreDNS and all four Flux controllers were healthy. The Flux Git source and
+  all four Kustomizations were Ready at `main@sha1:a6233e47`; Cilium was absent.
+- Disposability evidence: only system and Flux controller workloads were
+  present. PVCs, PVs, StorageClasses, VolumeAttachments and Cilium Pods were
+  absent. There is no Kubernetes-declared persistent volume or attachment to
+  preserve.
+- Artifact evidence: Helm `v3.19.0` pulled the Cilium `1.20.1` chart at the
+  pinned manifest `sha256:906ce40d35daad838d12add8a5ba7033e767767f51799a93c7eace2cec9cdc05`;
+  the archive matched layer SHA-256
+  `06210eef7c23d15f7699c79e2fe3a1ec9c389024c5c5c006ea04022d322449a2`.
+  Helm lint and template passed. A temporary official-checksum-verified Cosign
+  `v3.1.3` binary verified the exact manifest against the Cilium GitHub identity
+  regexp and GitHub Actions issuer, including offline transparency-log evidence.
+- Configuration evidence: the Cilium no-CNI patch rendered with all three node
+  inputs; each resulting config passed pinned Talos strict metal validation
+  without its contents being displayed.
+- Identity evidence: authenticated Talos reads matched every reserved endpoint,
+  wired `enp3s0` MAC and `nvme0n1` system disk in `INVENTORY.md`: 256 GB AirDisk
+  on the control plane and 512 GB TWSC TSC3AN512E6-F2T60S on both workers.
+  `rudtal-worker-2` separately exposed a read-only, empty `sr0` virtual-media
+  device; it was not the system disk.
+- Cleanup: the generated configs/talosconfig and temporary chart/Cosign workspace
+  were removed. No credential-bearing rendered output was retained.
+- P1 evidence gates passed, but S07B is not approved. The destructive reset,
+  rebuild, etcd bootstrap, Helm installation, Flux bootstrap and Git changes
+  remain unperformed and require a reviewed P1 handoff plus explicit approval.
+- Orchestrator review independently reconfirmed three Ready nodes, only system
+  and Flux workloads, no PVC/PV/StorageClass/VolumeAttachment or Cilium Pod,
+  and the Flux source plus all Kustomizations Ready at `main@sha1:a6233e47`.
+  The P1 handoff is accepted; P2 now waits only for explicit operator approval
+  of the documented destructive scope and operator presence at JetKVM.
+
 
 
 ## Next action
 
-Review and approve the corrected S07A branch commit. Before any S07B physical
-action, push `main` so live Flux reaches `a6233e47`, then push the reviewed
-experiment branch normally; confirm disposability; and retain the documented
-Flannel fresh-generation rollback. Repeat the artifact-only Cosign command at
-S07B Checkpoint 6 immediately before its Helm install.
+Obtain explicit operator approval for the destructive S07B P2 scope. After
+approval, freshly render and validate all three configs and repeat the identity
+match in the same supervised session. The first reset-boundary command is:
+`downloads/talosctl-v1.12.12-darwin-arm64 --talosconfig
+generated/rudtal-cp-1/talosconfig --nodes 192.168.1.122 reset --graceful
+--system-labels-to-wipe EPHEMERAL --system-labels-to-wipe STATE --reboot`.
+Do not run it until the configs are freshly rendered, the identity match is
+repeated in the same session, and the operator is present at JetKVM.
 
 ## Known decisions
 
