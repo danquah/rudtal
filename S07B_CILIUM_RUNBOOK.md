@@ -139,9 +139,14 @@ or JetKVM media `/dev/sr0`.
 Talos v1.12.12 `reset --help` confirms `--graceful`, repeated
 `--system-labels-to-wipe`, `--reboot`, and the default wait behavior. The two
 explicit labels limit the reset to Talos `EPHEMERAL` and `STATE`; do not add
-`--user-disks-to-wipe`. `--graceful` asks Kubernetes to cordon/drain and has
-special etcd-leave handling before the node is erased. Reset workers first, then
-the sole control plane:
+`--user-disks-to-wipe`.
+
+Use graceful reset for workers so Kubernetes drains them. This cluster has only
+one control-plane/etcd member, so it is a documented exception: Talos cannot
+remove the sole member from etcd and requires `--graceful=false`. Reset that
+control plane last, after the disposable workers. The false value skips the
+control-plane drain and etcd-leave checks; it is appropriate here because this
+procedure intentionally destroys the complete cluster generation:
 
 ```sh
 "$TALOS" --talosconfig generated/rudtal-cp-1/talosconfig \
@@ -153,10 +158,16 @@ the sole control plane:
   --system-labels-to-wipe EPHEMERAL \
   --system-labels-to-wipe STATE --reboot
 "$TALOS" --talosconfig generated/rudtal-cp-1/talosconfig \
-  --nodes "$CONTROL_PLANE" reset --graceful \
+  --nodes "$CONTROL_PLANE" reset --graceful=false \
   --system-labels-to-wipe EPHEMERAL \
   --system-labels-to-wipe STATE --reboot
 ```
+
+If resuming from the recorded S07B P2 halt, both workers have already completed
+their resets and are in maintenance mode. Do not reset them again. Freshly
+render and validate the configs, repeat authenticated identity checks on the
+still-installed control plane and insecure identity checks on both workers, then
+run only the `--graceful=false` control-plane command above.
 
 After each reset, verify maintenance mode at the matched address using the
 pinned client and `--insecure`; recheck the MAC and disk before applying a
@@ -175,6 +186,10 @@ On Talos v1.12.12, `version --insecure` returns `Unimplemented` in maintenance
 mode. It is not a maintenance failure. Use successful insecure `get links` and
 `get disks` to establish maintenance access, then match the expected wired MAC,
 disk model and size.
+
+Reference: [Talos v1.12 resetting a machine](https://docs.siderolabs.com/talos/v1.12/configure-your-talos-cluster/lifecycle-management/resetting-a-machine)
+states that graceful reset is unavailable for a single-member etcd cluster and
+specifies `--graceful=false` for that topology.
 
 ### Observed S07B P2 stop — 2026-09-06
 

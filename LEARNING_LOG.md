@@ -743,11 +743,13 @@ links and the matched MAC/NVMe, are the usable identity evidence.
 ### Recovery
 
 The current physical state is mixed: both workers are in maintenance mode and
-the control plane still has its prior installed Talos/etcd state. Preserve that
-fact for the next review. A reviewed, explicitly authorized
-singleton-control-plane reset/rebuild procedure is required before any
-machine-config apply, etcd bootstrap or Cilium action. Never try to repair the
-CNI in place.
+the control plane still has its prior installed Talos/etcd state. Talos v1.12's
+reset guide explicitly documents that graceful reset is unavailable for a
+single-member etcd cluster and prescribes `--graceful=false`. The reviewed
+continuation therefore leaves the already-reset workers alone, repeats identity
+checks, resets only the control plane with that flag, and then continues the
+fresh rebuild. This skips etcd leave because the complete old generation is
+being discarded; it is not an in-place CNI repair.
 
 Optional exercise: explain why removing a sole etcd member is different from
 draining a worker, and list the three independent observations that prove a

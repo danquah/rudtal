@@ -27,7 +27,7 @@ virtual media unmounted. S05 changed no configuration, storage or boot media;
 Tailscale remains untouched.
 
 - Date recorded: 2026-09-06
-- Current session: `S07B` P2 halted at the control-plane reset checkpoint
+- Current session: `S07B` P2 paused after the singleton control-plane reset was corrected
 - Destructive scope: the operator authorized the documented disposal and was
   present at JetKVM; the two worker resets were performed.
 - `rudtal-worker-1` at `192.168.1.122`: graceful reset completed; insecure
@@ -52,9 +52,10 @@ Tailscale remains untouched.
   `generated/` directory was removed when the physical procedure halted.
 - Existing `state/kubeconfig` remains ignored and was not displayed. It must
   not be assumed valid for a later fresh generation.
-- Recovery boundary: do not attempt an in-place CNI change or continue from
-  this mixed state. Review and approve a singleton-control-plane reset/rebuild
-  procedure before any further physical action.
+- Recovery boundary: do not attempt an in-place CNI change or restore the old
+  workers. Primary Talos v1.12 guidance confirms that a single-member etcd
+  control plane must use `reset --graceful=false`; the runbook now records that
+  topology-specific procedure.
 - S05 baseline before workload: Talos `get cpustats` cumulative user/system and
   `get memorystats` used/total (reported KiB) were `rudtal-cp-1` `178/528.83`,
   `1,928,672/16,057,704`; `rudtal-worker-1` `79.53/70.97`,
@@ -275,8 +276,8 @@ authorize a destructive action.
 - Orchestrator review independently reconfirmed three Ready nodes, only system
   and Flux workloads, no PVC/PV/StorageClass/VolumeAttachment or Cilium Pod,
   and the Flux source plus all Kustomizations Ready at `main@sha1:a6233e47`.
-  The P1 handoff is accepted; P2 now waits only for explicit operator approval
-  of the documented destructive scope and operator presence at JetKVM.
+  The P1 handoff was accepted; the operator then authorized and began P2 with
+  JetKVM present.
 
 ## S07B P2 halt record
 
@@ -298,23 +299,25 @@ authorize a destructive action.
   the intended reset. The checkpoint is failed and S07B is halted. No
   configuration apply, bootstrap, Cilium, Flux, test, credential, or Git
   operation followed.
-- Owner and recovery: the operator must obtain review and approve a
-  singleton-control-plane reset/rebuild procedure from this observed state.
-  Do not retry or alter CNI in place.
+- State at halt: the operator requested review of a singleton-control-plane
+  reset/rebuild procedure rather than retrying or altering the CNI in place.
+- Review result: the observed failure is the documented behavior for a
+  single-member etcd cluster. The old control plane remains healthy and is the
+  only etcd member; both workers remain in maintenance mode. The corrected
+  continuation resets only the control plane with `--graceful=false`, then
+  applies fresh reviewed configs to all three nodes and bootstraps the new etcd
+  generation exactly once.
 
 
 
 
 ## Next action
 
-Do not resume S07B P2. Preserve the observed mixed state for review: both
-workers are in Talos maintenance mode, while the control plane still presents
-the prior installed Talos API and a running etcd service. Review the
-single-control-plane graceful-reset failure against primary Talos guidance,
-write and approve a corrected fresh-rebuild procedure, then begin with new
-identity checks and freshly rendered ignored configuration. Do not apply a
-machine config, bootstrap etcd, install Cilium, or modify Flux before that
-review.
+Resume S07B P2 from the documented mixed-state branch in Checkpoint 4. Freshly
+render and validate the three configs, repeat the hardware identity checks, and
+do not reset the workers again. Reset only `rudtal-cp-1` with
+`--graceful=false`, verify all three machines are in maintenance mode, then
+continue with configuration apply, exactly one bootstrap, Cilium and Flux.
 
 ## Known decisions
 
@@ -352,7 +355,7 @@ review.
 | `S04B` | Complete | Installed `rudtal-worker-2` on its approved 512 GB NVMe; removed boot media; verified authenticated Talos and Kubernetes `Ready` |
 | `S05` | Complete | Recorded Talos/Kubernetes baseline; deployed and cleaned up a LAN NodePort workload; rebooted and recovered only the control plane; documented worker continuity and reconciliation |
 | `S06` | Complete | Bootstrapped Flux v2.9.5 on GitHub, added the declarative cluster/infrastructure/apps layout, proved reconciliation and drift correction, and pruned the disposable check |
-| `S07` | Halted | S07A design and P1 preflight passed; S07B P2 reset workers but halted when the reviewed graceful sole-control-plane reset failed before state wipe |
+| `S07` | In progress | Workers are reset; corrected singleton control-plane reset and the remaining Cilium rebuild are ready to resume |
 | `S08` | Not started | Tailscale operator and access controls |
 | `S09` | Not started | Full teardown and reproducible rebuild |
 | `S10A` | Not started | Portable pinned tools and separated routine/break-glass administration paths |
