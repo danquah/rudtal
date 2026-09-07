@@ -823,49 +823,50 @@ Optional exercise: trace one request from the worker-2 client to the worker-1
 Pod by Pod IP, then explain which component changes for ClusterIP, NodePort,
 and the namespaced CiliumNetworkPolicy test.
 
-## S08: Tailscale Operator deployment and certificate gate
+## S08: Tailscale Operator, HTTPS access, and narrow Kubernetes RBAC
 
 ### What happened
 
-The reviewed S08 configuration was promoted to `main` and Flux reconciled the
-Tailscale Operator `1.102.3`, its CRDs, a two-replica authenticated Kubernetes
-API ProxyGroup, and the narrow `rudtal-k8s-routine-readers` ClusterRoleBinding.
-The operator created a tag-bound OAuth client in Tailscale and used the
-interactive bootstrap helper to create the cluster-only
-`tailscale/operator-oauth` Secret; no credential material was displayed or
-committed. The user also set a JetKVM local password; JetKVM is not enrolled in
-the tailnet.
+Flux now manages Tailscale Operator `1.102.3` from `main@sha1:2bcd6216`. The
+operator OAuth client was created through the Tailscale console, and its value
+was bootstrapped interactively into the cluster-only
+`tailscale/operator-oauth` Secret without displaying or committing credential
+material. The user set a JetKVM local password; JetKVM remains outside the
+tailnet.
 
-Both API proxy Pods are Running and connected to Tailscale, but the ProxyGroup
-is not Ready or advertising a URL because its TLS certificate has not completed
-provisioning. Tailscale HTTPS is enabled; MagicDNS and the proxy machines'
-certificate status must be verified in the Tailscale console before testing.
-No allowed or denied remote Kubernetes authorization claim is made yet.
+The initial two-replica API ProxyGroup registered and ran but failed to publish:
+its Tailscale Service waited for a certificate while certificate issuance waited
+for service advertisement. It was removed cleanly with its Service, Pods,
+StatefulSet, and one orphaned pre-rename TLS/RBAC set. The documented
+in-process auth proxy was enabled on the existing Operator Pod instead. Its
+first tailnet HTTPS request provisioned the certificate and then succeeded.
 
-The retained single-user tailnet policy is network-unrestricted by the
-operator's decision. Least privilege is therefore enforced only at the
-application boundary: Tailscale may authenticate the selected identity to the
-proxy, and Kubernetes RBAC permits it only get/list/watch on named
-observability resources. It cannot read Secrets or ConfigMaps, read logs,
-exec/attach/port-forward, or mutate resources.
+The tailnet policy retains the operator-approved unrestricted single-user
+network baseline. Least privilege is therefore at the Kubernetes application
+boundary: the policy grants the approved identity only the named
+`rudtal-k8s-routine-readers` impersonation group to the Operator. The verified
+consumer result was `yes` for listing Nodes and `no` for reading Secrets across
+all namespaces.
 
 ### Administrative lesson
 
-The API ProxyGroup has three independent readiness layers. Kubernetes schedules
-the proxy Pods; Tailscale registers their tagged identities and provisions the
-HTTPS certificate; Kubernetes then receives the authenticated proxied request
-and evaluates RBAC. A Running Pod proves only the first two registration steps,
-not that there is a usable HTTPS endpoint or authorization.
+Tailscale transport authentication, the API proxy, and Kubernetes RBAC are
+separate gates. A successful HTTPS connection proves tailnet connectivity and
+certificate issuance; `kubectl auth can-i` proves what the resulting
+impersonated Kubernetes identity can actually do. The explicit
+`KUBECONFIG=state/tailscale-kubeconfig` path keeps routine remote access local
+and separate from both direct-LAN Kubernetes administration and Talos machine
+credentials.
 
-Tailscale's HTTPS certificate workflow requires MagicDNS and HTTPS Certificates
-to be enabled. Turning on MagicDNS changes tailnet DNS resolution, not Talos,
-the router, or Kubernetes. It is safe to repeat, but disabling it after a
-certificate-backed proxy is working breaks that endpoint. Direct LAN
-`state/kubeconfig` administration remains the recovery path while the proxy is
-incomplete.
+The in-process proxy is a safe, supported fit for this non-HA lab, but it
+shares the Operator Pod lifecycle. The first HTTPS request can briefly time out
+while Let's Encrypt provisions its certificate; retrying is safe. Direct LAN
+Kubernetes administration remains the recovery path if the Operator, tailnet,
+or certificate flow fails.
 
-Optional exercise: explain why an authenticated API-proxy client can list Pods
-but receives `no` from `kubectl auth can-i get secrets --all-namespaces`.
+Optional exercise: use the routine kubeconfig to explain why `list nodes` is
+allowed but `get secrets --all-namespaces` is denied, then identify which layer
+enforces each result.
 
 ## Entry template
 

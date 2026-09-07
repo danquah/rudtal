@@ -1,9 +1,9 @@
 # S08 Tailscale Operator and access controls
 
-Status: deployed from `main@sha1:88e2e2eb`. The Operator HelmRelease is Ready
-and both API proxy Pods are Running, but the ProxyGroup is awaiting Tailscale
-DNS/TLS certificate readiness and has no advertised URL. Remote allowed/denied
-Kubernetes authorization proof is still pending.
+Status: complete at `main@sha1:2bcd6216`. The Operator HelmRelease `1.102.3`
+runs the documented in-process auth proxy. Tailscale HTTPS connectivity and
+the allowed (`list nodes`) and denied (`get secrets --all-namespaces`) Kubernetes
+authorization checks passed from a tailnet client.
 
 ## Scope and ownership
 
@@ -14,7 +14,7 @@ and direct LAN `state/kubeconfig` administration remain the recovery paths.
 
 | Configuration | Owner | Declarative location or external location |
 | --- | --- | --- |
-| Operator, CRDs, ProxyGroup and routine RBAC | Flux / Kubernetes | `infrastructure/controllers/tailscale/`, `infrastructure/configs/tailscale/` |
+| Operator, CRDs, in-process API proxy and routine RBAC | Flux / Kubernetes | `infrastructure/controllers/tailscale/`, `infrastructure/configs/tailscale/` |
 | OAuth client, tags, grants, HTTPS and device inventory | Tailscale | Tailscale admin console; policy fragment in `docs/policies/tailscale-s08.hujson` |
 | OAuth secret value | Kubernetes bootstrap exception | cluster-only `tailscale/operator-oauth`; password-manager record chosen by operator |
 | Node OS, port 50000 and Talos client certificates | Talos | unchanged; separate from S08 |
@@ -25,35 +25,33 @@ and direct LAN `state/kubeconfig` administration remain the recovery paths.
 ```text
 single-user tailnet device
   └─ existing unrestricted tailnet connectivity
-       └─ HTTPS 443 to 2x tag:rudtal-k8s-api ProxyGroup Pods
+       └─ HTTPS 443 to tag:rudtal-k8s-operator Operator Pod
             └─ authenticated Kubernetes API proxy
                  └─ impersonates group rudtal-k8s-routine-readers
                       └─ ClusterRole read-only inventory and Flux status
+```
 
 The retained tailnet baseline can reach other tailnet devices. S08 adds no
 subnet route, exit node, JetKVM enrollment, or Kubernetes permission outside
 the impersonated reader group.
 
-The ProxyGroup is selected over the in-process proxy because its two replicas
-are independent of the Operator Deployment and pre-provision API certificates.
-It uses `auth` mode: Tailscale authenticates the caller, the proxy adds only the
-approved Kubernetes group, and Kubernetes RBAC decides resource verbs. `noauth`
-is intentionally not used.
+The in-process proxy shares the Operator Pod and has no high-availability
+guarantee. It was selected after the dedicated ProxyGroup's certificate and
+Tailscale Service advertisement path deadlocked. It uses `auth` mode: Tailscale
+authenticates the caller, the proxy adds only the approved Kubernetes group, and
+Kubernetes RBAC decides resource verbs. `noauth` is intentionally not used.
 
 ## Version and artifact decision
 
 Tailscale's official stable Helm index on 2026-09-06 selected chart and
 application version `1.102.3`. Helm 3.19.0 fetched the chart; its SHA-256 was
 `c2440014df04fdf1b67b53daa4290d7b878584cf4702f9b1b50f51ba64499a6a`, matching
-the index. The repository pins the chart version, all immediately usable images,
-and the API proxy image index digests:
+the index. The repository pins the chart version and the Operator image digest:
 
 | Artifact | Pin |
 | --- | --- |
-| Helm chart | `tailscale-operator` `1.102.3`; archive SHA-256 `c244…99a6a` |
-| Operator | `tailscale/k8s-operator:v1.102.3@sha256:d86a…eb12` |
-| Generic future proxy default | `tailscale/tailscale:v1.102.3@sha256:8c42…f680` |
-| API ProxyGroup | `tailscale/k8s-proxy:v1.102.3@sha256:82de…d4546` |
+| Helm chart | `tailscale-operator` `1.102.3`; archive SHA-256 `c244…99a6` |
+| Operator and in-process proxy | `tailscale/k8s-operator:v1.102.3@sha256:d86a…eb12` |
 
 The stable HTTP Helm repository is Tailscale's supported distribution. It is
 not an OCI source, so Flux cannot pin it with an `OCIRepository` manifest
@@ -65,26 +63,23 @@ reviewed supply-chain limit, not a signature claim.
 
 Kubernetes `1.35.8` exceeds Tailscale's documented minimum `1.23`; Cilium runs
 with kube-proxy retained, so its documented kube-proxy-replacement caveat does
-not apply. Tailscale recommends equal operator and proxy versions; all selected
-operator/proxy images use `v1.102.3`.
+not apply. The in-process proxy is part of the pinned Operator image.
 
 ## Tailnet policy and OAuth client
 
 The accepted single-user tailnet baseline retains unrestricted network
-connectivity. `docs/policies/tailscale-s08.hujson` therefore adds tags,
-Service auto-approval, and the Kubernetes impersonation capability for
-`mads@danquah.dk`; it does not claim a tailnet network deny. The group and
-Kubernetes RBAC remain least-privilege at the API authorization layer:
+connectivity. `docs/policies/tailscale-s08.hujson` therefore adds the
+Operator tag and the Kubernetes impersonation capability for `mads@danquah.dk`;
+it does not claim a tailnet network deny. The group and Kubernetes RBAC remain
+least-privilege at the API authorization layer:
 
-- `tag:rudtal-k8s-operator`: OAuth identity and Operator device;
-- `tag:rudtal-k8s-api`: API ProxyGroup identity;
-- `tag:rudtal-k8s-unexposed`: safe default for a future Service/Ingress proxy;
-  it has no S08-specific connectivity grant or Service auto-approval.
+- `tag:rudtal-k8s-operator`: OAuth identity, Operator device, and in-process
+  API proxy.
 
-Only `tag:rudtal-k8s-api` can advertise the API's Tailscale Service. Tailscale
-HTTPS is enabled and the merged policy passed the admin-console validation.
-MagicDNS and the TLS certificate status of both API proxy machines must be
-confirmed before the ProxyGroup can advertise its HTTPS URL.
+No S08 Tailscale Service is advertised, so no Service auto-approver is present.
+MagicDNS and Tailscale HTTPS are enabled. The first connection can time out
+while the Operator provisions its Let's Encrypt certificate; retry the same
+HTTPS request after a short wait.
 
 The OAuth client is created in **Tailscale → Settings → Trust credentials**
 with `tag:rudtal-k8s-operator` and exactly these write scopes, which Tailscale
@@ -113,7 +108,7 @@ Expected proof after activation from a Tailscale-connected machine:
 
 ```sh
 KUBECONFIG=state/tailscale-kubeconfig \
-  tailscale configure kubeconfig https://<ProxyGroup-status-URL>
+  tailscale configure kubeconfig https://tailscale-operator.<tailnet>.ts.net
 KUBECONFIG=state/tailscale-kubeconfig kubectl auth can-i list nodes
 # yes
 KUBECONFIG=state/tailscale-kubeconfig kubectl auth can-i get secrets --all-namespaces
@@ -158,17 +153,18 @@ an explicitly reviewed design; it must not reuse the Talos age identity.
 
 Rotate by creating a replacement OAuth client with the same three scopes and
 operator tag, storing the new value, running the helper, restarting only the
-Operator Deployment, and proving the Operator plus ProxyGroup still work before
-revoking the old client in Tailscale. Do not rotate by editing Helm values.
+Operator Deployment, and proving the in-process API proxy plus the two `can-i`
+checks before revoking the old client in Tailscale. Do not rotate by editing
+Helm values.
 
 For a rebuild, recreate the Tailscale OAuth client only if it was revoked;
 otherwise retrieve its password-manager record and bootstrap this same Secret
 before enabling the Git source that contains the Tailscale HelmRelease, then
-reconcile Flux. For permanent removal: revoke the OAuth client, delete the
-policy grants and tag ownership, remove these Git declarations and reconcile
-with prune, then confirm Operator and ProxyGroup devices disappear from the
-Tailscale Machines page. Deleting the ProxyGroup first removes the remote API
-endpoint; direct LAN administration remains available throughout.
+reconcile Flux. For permanent removal: remove the HelmRelease and routine RBAC
+declarations from Git and reconcile with prune, confirm the Operator device
+disappears from Tailscale Machines, revoke the OAuth client, then remove the
+policy grant and tag ownership. Removing the HelmRelease first removes the
+remote API endpoint; direct LAN administration remains available throughout.
 
 ## Inspection and troubleshooting
 
@@ -177,30 +173,30 @@ Use non-secret metadata only:
 ```sh
 KUBECONFIG=state/kubeconfig flux get sources helm -A
 KUBECONFIG=state/kubeconfig flux get helmreleases -A
-KUBECONFIG=state/kubeconfig kubectl get proxygroup rudtal-k8s-api
-KUBECONFIG=state/kubeconfig kubectl get pods -n tailscale
+KUBECONFIG=state/kubeconfig kubectl get deployment operator -n tailscale
+KUBECONFIG=state/kubeconfig kubectl logs deployment/operator -n tailscale
 KUBECONFIG=state/kubeconfig kubectl get clusterrole,clusterrolebinding \
   rudtal-k8s-routine-reader,rudtal-k8s-routine-readers
 ```
 
 If the HelmRelease cannot mount `operator-oauth`, do not add OAuth values to
 Git: rerun the helper, inspect Secret metadata only, then reconcile the narrow
-HelmRelease. If the ProxyGroup is not ready, inspect its conditions and the
-Operator Pod logs without printing Secret data. If tailnet connectivity fails,
-inspect Tailscale HTTPS, the merged grant, tag ownership, and Machines-page
-device tags. If `can-i` is unexpectedly broad, inspect all bindings for the
-impersonated group; permissions cannot be denied by a narrower Role.
+HelmRelease. If the first HTTPS request times out, wait briefly and retry it;
+inspect the Operator logs without printing Secret data if it continues to fail.
+If tailnet connectivity fails, inspect Tailscale HTTPS, MagicDNS, the merged
+grant, tag ownership, and the Operator device tag. If `can-i` is unexpectedly
+broad, inspect all bindings for the impersonated group; permissions cannot be
+denied by a narrower Role.
 
 ## JetKVM review gate
 
-JetKVM is not an S08 workload or Kubernetes proxy. Before any JetKVM change,
-review its current local password/authentication state, firmware version and
-upgrade recovery path, Tailscale enrollment/tag/device identity, and whether its
-Tailscale path is limited to the console UI rather than a subnet route. Record
-only the posture and recovery procedure, never passwords, device keys or
-screenshots containing credentials. The current repository has no verified
-answer for any of these fields; do not infer one from Kubernetes or this
-Operator.
+JetKVM is not an S08 workload or Kubernetes proxy. The user set its local
+password; observed app firmware is `0.5.8` and system firmware is `0.2.8`.
+It is not enrolled in Tailscale. Before any future JetKVM tailnet change,
+review its local authentication state, firmware upgrade recovery path, Tailscale
+tag/device identity, and whether its Tailscale path is limited to the console UI
+rather than a subnet route. Record only posture and recovery procedure, never
+passwords, device keys, or credential-bearing screenshots.
 
 ## References checked 2026-09-06
 
