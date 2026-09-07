@@ -11,18 +11,10 @@
     ],
   },
 
+  // The in-process API proxy runs with the Operator's tag. No dedicated
+  // ProxyGroup or Tailscale Service remains after this cutover.
   "tagOwners": {
     "tag:rudtal-k8s-operator": [],
-    "tag:rudtal-k8s-api": ["tag:rudtal-k8s-operator"],
-    "tag:rudtal-k8s-unexposed": ["tag:rudtal-k8s-operator"],
-  },
-
-  // Dedicated API proxies advertise a Tailscale Service. This does not approve
-  // any future proxy carrying tag:rudtal-k8s-unexposed.
-  "autoApprovers": {
-    "services": {
-      "svc:*": ["tag:rudtal-k8s-api"],
-    },
   },
 
   "grants": [
@@ -31,7 +23,7 @@
       // alone maps the approved Tailscale identity to the Kubernetes reader
       // group; no other identity receives that Kubernetes group.
       "src": ["group:rudtal-k8s-routine-readers"],
-      "dst": ["tag:rudtal-k8s-api"],
+      "dst": ["tag:rudtal-k8s-operator"],
       "ip": ["tcp:443"],
       "app": {
         "tailscale.com/cap/kubernetes": [
@@ -44,7 +36,7 @@
   "tests": [
     {
       "src": "group:rudtal-k8s-routine-readers",
-      "accept": ["tag:rudtal-k8s-api:443"],
+      "accept": ["tag:rudtal-k8s-operator:443"],
     },
   ],
 }
