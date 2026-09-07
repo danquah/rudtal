@@ -1,0 +1,22 @@
+# Applies only when this reviewed branch is promoted. The ProxyClass pins the
+# dedicated kube-apiserver proxy image and requires its replicas on distinct
+# Kubernetes nodes; it does not change the in-process Operator proxy.
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyClass
+metadata:
+  name: rudtal-k8s-api-canary
+spec:
+  statefulSet:
+    pod:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  tailscale.com/parent-resource: rudtal-k8s-api-canary
+              topologyKey: kubernetes.io/hostname
+      tailscaleContainer:
+        # Official Docker Hub multi-architecture index for v1.102.3, resolved
+        # on 2026-09-07. The cluster consumes the linux/amd64 child manifest.
+        image: tailscale/k8s-proxy:v1.102.3@sha256:82de09cb7b97b7e59201c21af2d4a189d688e448948b092c2e020b3ccd9d4546
+        imagePullPolicy: IfNotPresent

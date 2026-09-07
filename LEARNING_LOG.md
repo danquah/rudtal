@@ -896,6 +896,47 @@ Optional exercise: identify which failure is covered by two ProxyGroup replicas
 and why they still cannot preserve Kubernetes API access when the sole Talos
 control-plane node is unavailable.
 
+## S08C G0: local ProxyGroup canary preparation
+
+### What happened
+
+A credential-free Git candidate now declares a `ProxyClass` plus an auth-mode,
+two-replica `rudtal-k8s-api-canary` ProxyGroup. The ProxyClass pins the official
+`tailscale/k8s-proxy:v1.102.3` index digest and requires the generated
+parent-resource label to be anti-affined across Kubernetes hostnames. The
+existing in-process API proxy remains enabled, and no account, credential,
+Kubernetes object, Flux source, Talos setting, network route, or public service
+was changed.
+
+Read-only checks found three Ready nodes, Cilium `3/3`, CoreDNS `2/2`, a Ready
+Operator, all Flux objects and both HelmReleases Ready. The retained tailnet
+endpoint returned Kubernetes `/readyz`; its routine reader identity still could
+list Nodes but could not read Secrets. Kustomize rendered the candidate, the
+installed ProxyClass/ProxyGroup CRD fields accepted the requested image and
+auth-mode configuration, the HuJSON policy fragment parsed, whitespace checks
+passed, and the candidate-file secret scan found no credential pattern.
+
+### Administrative lesson
+
+A ProxyGroup separates the proxy Pods from the Operator lifecycle, but does not
+make this one-control-plane Kubernetes API highly available. Pod anti-affinity
+protects the canary only from one proxy Pod or Kubernetes node failure. The
+dedicated endpoint also needs Tailscale policy state that Git cannot safely
+apply: an Operator-owned canary tag, exact
+`svc:rudtal-k8s-api-canary` auto-approval, and TCP `80` plus `443` for the
+existing reader group. That account change remains a human gate.
+
+The additive policy carries the same Kubernetes impersonation group as the
+working in-process proxy. Network reachability and the app capability therefore
+remain distinct from Kubernetes RBAC: after G1/G2, prove both `list nodes` is
+allowed and `get secrets --all-namespaces` is denied through the canary's own
+ignored kubeconfig. The current in-process endpoint and direct LAN kubeconfig
+are the recovery paths.
+
+Optional exercise: compare the canary's anti-affinity selector with the
+StatefulSet Pod labels after a supervised deployment, then explain why two Pods
+on different nodes still depend on the sole control-plane node.
+
 ## Entry template
 
 ```markdown

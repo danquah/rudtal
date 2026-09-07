@@ -1,0 +1,17 @@
+# This is an additive S08C canary. The retained in-process auth proxy remains
+# the routine endpoint and recovery path until a separately reviewed decision.
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyGroup
+metadata:
+  name: rudtal-k8s-api-canary
+  namespace: tailscale
+spec:
+  type: kube-apiserver
+  replicas: 2
+  tags:
+    - tag:rudtal-k8s-api
+  hostnamePrefix: rudtal-k8s-api-canary
+  proxyClass: rudtal-k8s-api-canary
+  kubeAPIServer:
+    mode: auth
+    hostname: rudtal-k8s-api-canary

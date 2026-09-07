@@ -69,8 +69,9 @@ to bypass the certificate gate while unattended.
   routes, exit nodes, or public exposure.
 - Use a distinct name and hostname, initially
   `rudtal-k8s-api-canary`, so existing kubeconfig contexts remain valid.
-- Pin the `tailscale/k8s-proxy` image by the reviewed `1.102.3` digest through a
-  `ProxyClass`.
+- Pin the `tailscale/k8s-proxy:v1.102.3` multi-architecture index
+  `sha256:82de09cb7b97b7e59201c21af2d4a189d688e448948b092c2e020b3ccd9d4546`
+  through a `ProxyClass`; Docker Hub resolved it on 2026-09-07.
 - Require the two replicas to run on different Kubernetes nodes with pod
   anti-affinity using the generated label
   `tailscale.com/parent-resource: rudtal-k8s-api-canary` and topology key
@@ -109,7 +110,7 @@ Candidate policy additions:
 },
 "autoApprovers": {
   "services": {
-    "svc:*": ["tag:rudtal-k8s-api"],
+    "svc:rudtal-k8s-api-canary": ["tag:rudtal-k8s-api"],
   },
 },
 "grants": [
@@ -136,7 +137,8 @@ Before cluster deployment, the human operator must confirm all of the following:
 
 - the merged tailnet policy retains the working in-process proxy access;
 - `tag:rudtal-k8s-api` is owned by `tag:rudtal-k8s-operator`;
-- the service auto-approver is accepted by the policy editor;
+- only `svc:rudtal-k8s-api-canary` is auto-approved for
+  `tag:rudtal-k8s-api`;
 - the routine-reader grant permits TCP `80` and `443` to the canary tag and
   carries only the existing Kubernetes impersonation group;
 - no broad OAuth scope, new credential, public port, route, exit node or JetKVM

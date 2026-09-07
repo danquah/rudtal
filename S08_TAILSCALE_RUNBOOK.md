@@ -1,9 +1,8 @@
 # S08 Tailscale Operator and access controls
 
-Status: complete at `main@sha1:2bcd6216`. The Operator HelmRelease `1.102.3`
-runs the documented in-process auth proxy. Tailscale HTTPS connectivity and
-the allowed (`list nodes`) and denied (`get secrets --all-namespaces`) Kubernetes
-authorization checks passed from a tailnet client.
+Status: S08 baseline complete at observed `main@sha1:8ee5a834`. S08C G0 is a
+local, unpromoted, credential-free ProxyGroup candidate; the in-process auth
+proxy remains the live routine endpoint.
 
 ## Scope and ownership
 
@@ -187,6 +186,41 @@ If tailnet connectivity fails, inspect Tailscale HTTPS, MagicDNS, the merged
 grant, tag ownership, and the Operator device tag. If `can-i` is unexpectedly
 broad, inspect all bindings for the impersonated group; permissions cannot be
 denied by a narrower Role.
+
+## S08C G0: local ProxyGroup candidate
+
+The local `experiment/tailscale-proxygroup-s08c` branch declares a two-replica,
+auth-mode `rudtal-k8s-api-canary` ProxyGroup and its ProxyClass. Its
+`tailscale/k8s-proxy:v1.102.3` Docker Hub multi-architecture index is pinned to
+`sha256:82de09cb7b97b7e59201c21af2d4a189d688e448948b092c2e020b3ccd9d4546`;
+the lab nodes pull the `linux/amd64` child manifest. Required pod
+anti-affinity selects the Operator-generated
+`tailscale.com/parent-resource: rudtal-k8s-api-canary` label across
+`kubernetes.io/hostname`.
+
+On 2026-09-07, Tailscale's API proxy overview and setup documentation described
+`ProxyGroup` as the dedicated API proxy, required existing impersonation RBAC
+and a service auto-approver, and specified TCP `80` plus `443` for the dedicated
+path. The `v1.102.3` API reference confirms `auth`/`noauth`, the unique API
+hostname, `tailscale/k8s-proxy` as the kube-apiserver ProxyGroup image, and the
+four canary status conditions. Tailscale issue #20716 remained open and reports
+the analogous HTTPS-only Ingress advertisement/certificate cycle; it is
+evidence to collect, not proof of the API-proxy result. Issue #19019 is closed;
+its TCP certificate-domain discovery defect predates `1.102.3`.
+
+The proposed policy fragment in `docs/policies/tailscale-s08.hujson` retains
+the Operator tag/grant, adds `tag:rudtal-k8s-api` owned by the Operator tag,
+permits that tag to advertise only `svc:rudtal-k8s-api-canary`, and grants only
+the existing routine reader group TCP `80`/`443` plus its existing Kubernetes
+impersonation group. The dual-port grant follows the documented client-access
+setup; it is not assumed to resolve the separate certificate/advertisement
+cycle. This is a fragment to merge into the complete tailnet policy, never a
+replacement.
+
+G1 is human-only: merge the fragment in the Tailscale policy editor, verify its
+tests, and confirm the tag ownership, service auto-approver, dual-port grant,
+unchanged in-process access, and authorization to promote and automatically
+revert the reviewed Git commit. Do not deploy before that confirmation.
 
 ## JetKVM review gate
 

@@ -1,4 +1,4 @@
-// S08 additive fragment for the existing single-user tailnet policy.
+// S08/S08C additive fragment for the existing single-user tailnet policy.
 // The accepted tailnet baseline permits all network connectivity. This fragment
 // limits only the Kubernetes impersonation capability; it does not add network
 // denial. Do not replace unrelated policy, ACLs, tags, routes, tests, or JetKVM
@@ -11,10 +11,19 @@
     ],
   },
 
-  // The in-process API proxy runs with the Operator's tag. No dedicated
-  // ProxyGroup or Tailscale Service remains after this cutover.
+  // The documented in-process API proxy runs with the Operator's tag and remains
+  // the working routine endpoint throughout the separate ProxyGroup canary.
   "tagOwners": {
     "tag:rudtal-k8s-operator": [],
+    "tag:rudtal-k8s-api": ["tag:rudtal-k8s-operator"],
+  },
+
+  // Allows only the canary-tagged ProxyGroup devices to advertise their
+  // Tailscale Service. It does not approve routes, exit nodes, or other tags.
+  "autoApprovers": {
+    "services": {
+      "svc:rudtal-k8s-api-canary": ["tag:rudtal-k8s-api"],
+    },
   },
 
   "grants": [
@@ -31,12 +40,28 @@
         ],
       },
     },
+    {
+      // Tailscale's API ProxyGroup setup documents client access on both ports.
+      // This grant does not claim to resolve the separate certificate wait.
+      "src": ["group:rudtal-k8s-routine-readers"],
+      "dst": ["tag:rudtal-k8s-api"],
+      "ip": ["tcp:80", "tcp:443"],
+      "app": {
+        "tailscale.com/cap/kubernetes": [
+          { "impersonate": { "groups": ["rudtal-k8s-routine-readers"] } },
+        ],
+      },
+    },
   ],
 
   "tests": [
     {
       "src": "group:rudtal-k8s-routine-readers",
       "accept": ["tag:rudtal-k8s-operator:443"],
+    },
+    {
+      "src": "group:rudtal-k8s-routine-readers",
+      "accept": ["tag:rudtal-k8s-api:80", "tag:rudtal-k8s-api:443"],
     },
   ],
 }
