@@ -364,11 +364,13 @@ authorize a destructive action.
 
 ## Next action
 
-S08 is prepared on `experiment/tailscale-s08`. Review JetKVM local
-authentication, firmware and Tailscale posture separately from Kubernetes;
-then approve the policy merge, least-privilege OAuth client, cluster-only OAuth
-Secret bootstrap and normal Git/Flux promotion. Do not expose a public port,
-change JetKVM, or reuse the retired bootstrap deploy credential.
+S08 is complete and its in-process Tailscale API proxy remains the working
+routine endpoint. An optional S08C canary is planned in
+`docs/plans/tailscale-proxygroup-canary.md`. A worker may prepare it unattended,
+but must stop before deployment until the additive tailnet policy and automatic
+rollback are explicitly approved. Keep the in-process endpoint enabled during
+the canary. Do not expose a public port, change JetKVM, rotate the Operator OAuth
+credential, or improvise around a certificate wait by editing generated Secrets.
 
 ## Known decisions
 
@@ -396,6 +398,8 @@ change JetKVM, or reuse the retired bootstrap deploy credential.
 - Complete portable administration tooling in S10A and the 1Password
   cross-machine recovery drill in S10B.
 - Complete the final repository curation and clean-clone handoff in S11.
+- Decide whether to run the optional S08C Tailscale API ProxyGroup canary after
+  its supervised tailnet-policy gate.
 - Revisit the optional three-control-plane experiment after the main plan.
 
 ## Session log
@@ -412,6 +416,7 @@ change JetKVM, or reuse the retired bootstrap deploy credential.
 | `S06` | Complete | Bootstrapped Flux v2.9.5 on GitHub, added the declarative cluster/infrastructure/apps layout, proved reconciliation and drift correction, and pruned the disposable check |
 | `S07` | Complete | Rebuilt a fresh Cilium `1.20.1` cluster, proved Flux adoption, cross-node networking/policy paths, main handoff, and read-only credential rotation |
 | `S08` | Complete | Tailscale Operator auth proxy deployed through Flux, HTTPS tailnet access and narrow Kubernetes RBAC proven, failed ProxyGroup and orphaned generated state pruned |
+| `S08C` | Planned | Retest a two-replica API ProxyGroup alongside the working in-process endpoint after a supervised additive tailnet-policy gate |
 | `S09` | Not started | Full teardown and reproducible rebuild |
 | `S10A` | Not started | Portable pinned tools and separated routine/break-glass administration paths |
 | `S10B` | Not started | Tailscale/RBAC and 1Password recovery drill from a clean trusted machine |

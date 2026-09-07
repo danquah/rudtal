@@ -868,6 +868,34 @@ Optional exercise: use the routine kubeconfig to explain why `list nodes` is
 allowed but `get secrets --all-namespaces` is denied, then identify which layer
 enforces each result.
 
+## S08C planning: isolate a ProxyGroup canary
+
+### What happened
+
+Review of the failed S08 ProxyGroup found that the working in-process fallback
+should remain in place while a dedicated endpoint is tested. The original
+tailnet grant omitted TCP `80`, which current Tailscale setup instructions list
+alongside `443`. The pinned `1.102.3` source also shows a possible circular
+first-certificate path: service advertisement waits for certificate data while
+certificate issuance can wait for permission to serve the advertised domain.
+The follow-up is recorded in `docs/plans/tailscale-proxygroup-canary.md`; no live
+cluster, tailnet, credential or endpoint changed during this planning session.
+
+### Administrative lesson
+
+A canary keeps a known-good administrative path available while a replacement
+is evaluated under a separate name. High availability must also be proven at
+the scheduler layer: two replicas provide little protection if both can run on
+one node, so the experiment requires cross-node pod anti-affinity. Repository
+and read-only preparation can be delegated, while a tailnet policy edit remains
+an account-owner gate. If the canary stalls, conditions, Events, safe byte
+lengths and sanitized logs are evidence; patching controller-owned Secrets would
+turn the result into an irreproducible workaround.
+
+Optional exercise: identify which failure is covered by two ProxyGroup replicas
+and why they still cannot preserve Kubernetes API access when the sole Talos
+control-plane node is unavailable.
+
 ## Entry template
 
 ```markdown
