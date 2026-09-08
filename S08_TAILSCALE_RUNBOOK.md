@@ -222,6 +222,38 @@ tests, and confirm the tag ownership, service auto-approver, dual-port grant,
 unchanged in-process access, and authorization to promote and automatically
 revert the reviewed Git commit. Do not deploy before that confirmation.
 
+## S08C observed result
+
+On 2026-09-08, the tailnet accepted the exact-service policy and its tests.
+Flux then deployed `main@sha1:f6d2d1e9`. The two ProxyGroup Pods ran on separate
+workers, all ProxyGroup conditions became True, its HTTPS URL was populated,
+and certificate/key byte lengths were non-zero without displaying their data.
+
+`state/tailscale-proxygroup-kubeconfig` is the ignored, mode `0600` canary
+client configuration. Through it, Kubernetes `/readyz` passed, `list nodes`
+returned `yes`, and `get secrets --all-namespaces` returned `no`. The endpoint
+had no failed probes during deletion and recreation of replica `-0`, an
+Operator rollout, or removal of the rollout annotation. The retained in-process
+endpoint also returned `/readyz` afterward.
+
+Do not infer a single fix for the earlier certificate wait. This successful run
+combined an exact service auto-approver, the documented TCP `80`/`443` client
+grant, retained in-process operation, a distinct hostname, and clean generated
+state. The canary required no Secret patch or other imperative bootstrap.
+
+The ProxyGroup declares no resource requests or limits and the cluster has no
+Metrics API, so current consumption was not measured. The Tailscale Operator
+Deployment also caused the namespace's `restricted:latest` Pod Security warning
+rather than satisfying that profile. These are recorded limitations for a
+later resource and security-hardening exercise; neither prevented the lab
+canary.
+
+Keep both endpoints for at least one day. After the observation interval,
+choose explicitly whether to retain the in-process proxy as a second endpoint
+or disable it through Helm values. Removing the canary remains a Git/Flux
+revert followed by removal of its additive tailnet policy after generated
+devices and Service state disappear.
+
 ## JetKVM review gate
 
 JetKVM is not an S08 workload or Kubernetes proxy. The user set its local

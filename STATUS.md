@@ -25,26 +25,30 @@ The operator removed the physical installer USB after reboot and left JetKVM
 virtual media unmounted. S05 changed no configuration, storage, boot media, or
 Tailscale state at that time.
 
-- Date recorded: 2026-09-07
-- Current session: `S08C` G0 complete — a credential-free, unpromoted
-  ProxyClass and two-replica auth-mode ProxyGroup candidate are committed only
-  on `experiment/tailscale-proxygroup-s08c`. The existing in-process
-  `apiServerProxyConfig.mode: "true"` remains the live routine endpoint.
-- G0 performed no Tailscale account, credential, cluster, Flux, Talos, Cilium,
-  node, router, JetKVM, or public-exposure mutation. The candidate reuses only
-  the existing `tailscale/operator-oauth` reference and does not render Secret
-  data.
-- Read-only baseline verification found all three nodes Ready; Cilium `3/3`,
-  CoreDNS `2/2`, the Tailscale Operator `1/1`, all six Flux Kustomizations, and
-  both HelmReleases Ready at observed `main@sha1:8ee5a834`. The retained
-  in-process endpoint returned `/readyz`; its routine checks remained `yes` for
-  `list nodes` and `no` for `get secrets --all-namespaces`.
-- The local candidate pins `tailscale/k8s-proxy:v1.102.3` to Docker Hub index
+- Date recorded: 2026-09-08
+- Current session: `S08C` canary deployed successfully from
+  `main@sha1:f6d2d1e9`. The human-applied tailnet policy and its tests were
+  accepted. The existing in-process endpoint remains enabled during the
+  observation period.
+- The ProxyGroup pins `tailscale/k8s-proxy:v1.102.3` to Docker Hub index
   `sha256:82de09cb7b97b7e59201c21af2d4a189d688e448948b092c2e020b3ccd9d4546`,
-  requires cross-node anti-affinity, and proposes only the additive canary tag,
-  exact-service auto-approver, dual-port grant, and existing reader-group
-  impersonation capability. G1 requires human policy-editor review, tests, and
-  explicit promotion/automatic-rollback authorization.
+  and cross-node anti-affinity placed its two Running replicas on
+  `rudtal-worker-1` and `rudtal-worker-2`. All four ProxyGroup conditions were
+  True, the HTTPS URL was populated, and certificate/key byte lengths were
+  non-zero without displaying Secret data.
+- The ignored mode-`0600` canary kubeconfig passed `/readyz`, allowed listing
+  Nodes, and denied reading Secrets across namespaces. Deleting replica `-0`,
+  rolling the Operator, and removing the temporary rollout annotation each
+  produced ten successful canary probes and zero failures. The in-process
+  endpoint recovered and also passed `/readyz`.
+- All nodes, Cilium `3/3`, Cilium Operator `2/2`, CoreDNS `2/2`, all six Flux
+  Kustomizations, and both HelmReleases remained Ready. Kubernetes declared
+  only ClusterIP Services. No Talos, Cilium, node, router, JetKVM, OAuth
+  credential, route, exit-node, or public-port configuration changed.
+- The cluster has no Metrics API and the proxy Pods declare no CPU/memory
+  requests or limits, so S08C records no instantaneous resource measurement.
+  The Tailscale Operator Deployment also triggers the namespace's Pod Security
+  `restricted:latest` warning; hardening is a separate follow-up.
 - Fresh cluster generation: `rudtal-cp-1`, `rudtal-worker-1`, and
   `rudtal-worker-2` are `Ready` on Talos `v1.12.12` and Kubernetes `v1.35.8`.
 - Hardware identity before the destructive boundary and again in maintenance
@@ -368,16 +372,12 @@ authorize a destructive action.
 
 
 
-S08C G0 is complete locally. The working in-process Tailscale API proxy remains
-the live routine endpoint. A human operator must complete G1 in the Tailscale
-policy editor: merge the additive fragment without removing existing rules; run
-its policy tests; verify tag ownership, exact
-`svc:rudtal-k8s-api-canary` auto-approval, TCP `80`/`443`, the unchanged reader
-impersonation group, and retained in-process access; then explicitly authorize
-promotion of the reviewed commit and automatic Git/Flux rollback on canary
-failure. Until then do not push, merge, deploy, change the Tailscale account or
-credential, alter Talos/Cilium/nodes/router/JetKVM, expose a public port, or edit
-generated Secrets.
+S08C is deployed and healthy. Observe both Tailscale endpoints for at least one
+day, then decide whether to retain the in-process endpoint or disable it through
+the Flux-managed Helm values. S10A portable administration work can proceed
+without waiting for that choice; use the existing routine endpoint until the
+decision is recorded. Do not alter Talos/Cilium/nodes/router/JetKVM, expose a
+public port, or edit generated Tailscale Secrets.
 
 ## Known decisions
 
@@ -423,7 +423,7 @@ generated Secrets.
 | `S06` | Complete | Bootstrapped Flux v2.9.5 on GitHub, added the declarative cluster/infrastructure/apps layout, proved reconciliation and drift correction, and pruned the disposable check |
 | `S07` | Complete | Rebuilt a fresh Cilium `1.20.1` cluster, proved Flux adoption, cross-node networking/policy paths, main handoff, and read-only credential rotation |
 | `S08` | Complete | Tailscale Operator auth proxy deployed through Flux, HTTPS tailnet access and narrow Kubernetes RBAC proven, failed ProxyGroup and orphaned generated state pruned |
-| `S08C` | G0 complete | Local, credential-free two-replica ProxyGroup candidate validated and committed; supervised tailnet-policy gate remains before any promotion or deployment |
+| `S08C` | Observing | Two-replica API ProxyGroup is Ready across both workers; RBAC and proxy/Operator lifecycle tests passed while the in-process endpoint remains enabled |
 | `S09` | Not started | Full teardown and reproducible rebuild |
 | `S10A` | Not started | Portable pinned tools and separated routine/break-glass administration paths |
 | `S10B` | Not started | Tailscale/RBAC and 1Password recovery drill from a clean trusted machine |

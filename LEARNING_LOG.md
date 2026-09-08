@@ -937,6 +937,47 @@ Optional exercise: compare the canary's anti-affinity selector with the
 StatefulSet Pod labels after a supervised deployment, then explain why two Pods
 on different nodes still depend on the sole control-plane node.
 
+## S08C G1/G2: ProxyGroup canary deployment
+
+### What happened
+
+The tailnet accepted the human-reviewed policy with an Operator-owned proxy tag,
+exact `svc:rudtal-k8s-api-canary` auto-approval, TCP `80`/`443`, the existing
+reader impersonation capability, and connectivity tests. Flux reconciled the
+ProxyClass and ProxyGroup from `main@sha1:f6d2d1e9`; no manifest was applied
+imperatively. Both proxy Pods ran on separate workers, all four ProxyGroup
+conditions became True, and the certificate Secret had non-empty certificate
+and key data.
+
+The canary kubeconfig passed `/readyz`, allowed listing Nodes, and denied reading
+Secrets. Ten probes succeeded without failure while replica `-0` was deleted
+and recreated. Ten more succeeded during an Operator rollout, and another ten
+while its temporary restart annotation was removed. This distinguishes the
+dedicated data path from the controller: the Operator creates and reconciles
+the proxies, but already-running ProxyGroup replicas continue serving the API
+when the Operator Pod is replaced.
+
+### Administrative lesson
+
+An accepted policy proves its syntax and declared network tests, while
+`ProxyGroup` conditions prove controller convergence and `kubectl auth can-i`
+proves Kubernetes authorization. None alone establishes the whole access path.
+Anti-affinity turned two replicas into a node-aware test by placing them on
+different workers; it still cannot compensate for the single API server and
+etcd member on the control-plane node.
+
+The earlier failure cannot be assigned to one cause because this run changed
+the policy, hostname, coexistence strategy and generated state together. A clean
+success without patching controller-owned Secrets is stronger evidence than an
+imperative workaround, but it is not a controlled comparison of each variable.
+The Metrics API remains absent and the generated proxy containers declare no
+resource requests or limits. The Operator Deployment's Pod Security warning is
+a useful later hardening question rather than evidence of failed networking.
+
+Optional exercise: use each ignored Tailscale kubeconfig to query `/readyz`,
+then identify which endpoint depends directly on the Operator Pod and which is
+served by the two ProxyGroup Pods.
+
 ## Entry template
 
 ```markdown

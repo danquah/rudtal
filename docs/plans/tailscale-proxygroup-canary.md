@@ -1,7 +1,8 @@
 # Tailscale API ProxyGroup canary
 
-Status: planned follow-up to S08. The working in-process API proxy remains the
-routine endpoint until this canary independently passes every acceptance check.
+Status: deployed successfully on 2026-09-08 and retained for observation. The
+working in-process API proxy remains available until a separate decision after
+at least one day of stable operation.
 
 ## Question to answer
 
@@ -217,6 +218,34 @@ that a separate reviewed decision after observing the ProxyGroup for at least
 one day. If the pinned release still exhibits the certificate/advertisement
 cycle, retain the in-process endpoint and repeat this plan only after an
 upstream fix is identified in a pinned stable release.
+
+## Observed result
+
+The human operator applied the reviewed additive tailnet policy and its tests
+passed. Git promoted `main@sha1:f6d2d1e9`; Flux created the ProxyClass and
+ProxyGroup without an imperative Kubernetes apply. Within about one minute,
+both proxy Pods were Running on different workers, all four ProxyGroup
+conditions were True, the HTTPS URL was populated, and the TLS Secret contained
+non-empty certificate and key data.
+
+The separate ignored canary kubeconfig returned Kubernetes `/readyz`. Its
+Tailscale identity could list Nodes and could not read Secrets across
+namespaces. Deleting replica `-0` produced ten successful API probes with no
+failures while the StatefulSet restored the Pod on its original worker. The
+canary then produced ten successful probes during an Operator rollout and ten
+more while the temporary rollout annotation was removed. The original
+in-process endpoint also recovered and returned `/readyz`.
+
+All nodes, Cilium, CoreDNS, Flux Kustomizations and both HelmReleases remained
+Ready. Kubernetes still declared only ClusterIP Services. The Metrics API was
+unavailable, and the generated proxy containers declared no CPU or memory
+requests or limits, so no instantaneous resource-use claim is made.
+
+This result proves that the pinned ProxyGroup can work with the final policy and
+clean canary state. It does not isolate which difference resolved the earlier
+wait: exact service auto-approval, dual-port client access, retained in-process
+operation, or removal of orphaned state may each have contributed. No generated
+Secret was edited to force success.
 
 ## References checked 2026-09-07
 
