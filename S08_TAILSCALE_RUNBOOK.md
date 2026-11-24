@@ -270,6 +270,10 @@ The `rudtal-denmark-exit` Connector sends internet traffic through the home
 connection in Denmark. It does not advertise LAN routes. JetKVM access stays
 independent. The exit node stops when the cluster is down.
 
+The exit Connector uses privileged containers for IP forwarding. Pod Security
+allows them only by exception in the dedicated `tailscale` namespace; Restricted
+audit and warnings remain enabled. Keep unrelated workloads out of this namespace.
+
 1. In [Access controls](https://login.tailscale.com/admin/acls), add
    `"tag:rudtal-denmark-exit": ["tag:rudtal-k8s-operator"]` to `tagOwners`.
    Give `mads@danquah.dk` access to `autogroup:internet` via
@@ -286,8 +290,10 @@ independent. The exit node stops when the cluster is down.
 
    Review existing ACLs and grants before approval. An existing rule that allows
    another identity to use exit nodes is not restricted by this grant.
-2. Publish the Connector to the `main` branch watched by Flux. Verify
-   `ConnectorReady=True`, `isExitNode=true`, and no subnet routes:
+2. Publish the Connector and its namespace policy to the `main` branch watched
+   by Flux. Check `ConnectorReady=True`, `isExitNode=true`, no subnet routes,
+   and a registered hostname. `ConnectorCreated` alone does not prove the Pod
+   started:
 
    ```sh
    KUBECONFIG=state/kubeconfig kubectl get connector rudtal-denmark-exit
@@ -300,8 +306,8 @@ independent. The exit node stops when the cluster is down.
    Check that the phone's public IP matches the home connection's public IP.
    Select **None** after the test to restore normal internet routing.
 
-To roll back, disable **Use as exit node**, revert the Connector commit on
-`main`, then remove only this exit node's tag and grant.
+To roll back, disable **Use as exit node**, revert the Connector and namespace
+policy commits on `main`, then remove only this exit node's tag and grant.
 
 ## References checked 2026-09-06
 
