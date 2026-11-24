@@ -4,3 +4,4 @@ resources:
   - rbac.yaml
   - proxy-class.yaml
   - proxy-group.yaml
+  - exit-node.yaml

@@ -264,6 +264,45 @@ tag/device identity, and whether its Tailscale path is limited to the console UI
 rather than a subnet route. Record only posture and recovery procedure, never
 passwords, device keys, or credential-bearing screenshots.
 
+## Danish exit node
+
+The `rudtal-denmark-exit` Connector sends internet traffic through the home
+connection in Denmark. It does not advertise LAN routes. JetKVM access stays
+independent. The exit node stops when the cluster is down.
+
+1. In [Access controls](https://login.tailscale.com/admin/acls), add
+   `"tag:rudtal-denmark-exit": ["tag:rudtal-k8s-operator"]` to `tagOwners`.
+   Give `mads@danquah.dk` access to `autogroup:internet` via
+   `tag:rudtal-denmark-exit`:
+
+   ```json
+   {
+     "src": ["mads@danquah.dk"],
+     "dst": ["autogroup:internet"],
+     "ip": ["*"],
+     "via": ["tag:rudtal-denmark-exit"]
+   }
+   ```
+
+   Review existing ACLs and grants before approval. An existing rule that allows
+   another identity to use exit nodes is not restricted by this grant.
+2. Publish the Connector to the `main` branch watched by Flux. Verify
+   `ConnectorReady=True`, `isExitNode=true`, and no subnet routes:
+
+   ```sh
+   KUBECONFIG=state/kubeconfig kubectl get connector rudtal-denmark-exit
+   ```
+
+3. In [Machines](https://login.tailscale.com/admin/machines), open the
+   `rudtal-denmark-exit` route settings and select **Use as exit node**.
+   Do not approve LAN routes.
+4. On cellular, select `rudtal-denmark-exit` in the Tailscale phone app.
+   Check that the phone's public IP matches the home connection's public IP.
+   Select **None** after the test to restore normal internet routing.
+
+To roll back, disable **Use as exit node**, revert the Connector commit on
+`main`, then remove only this exit node's tag and grant.
+
 ## References checked 2026-09-06
 
 - [Tailscale Operator installation](https://tailscale.com/docs/kubernetes-operator/install-operator)

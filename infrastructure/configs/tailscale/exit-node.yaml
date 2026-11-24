@@ -1,0 +1,9 @@
+apiVersion: tailscale.com/v1alpha1
+kind: Connector
+metadata:
+  name: rudtal-denmark-exit
+spec:
+  hostname: rudtal-denmark-exit
+  tags:
+    - tag:rudtal-denmark-exit
+  exitNode: true
